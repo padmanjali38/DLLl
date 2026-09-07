@@ -1,0 +1,6 @@
+{
+  "name": "Doubly Linked List",
+  "description": "An interactive educational guide and visual playground to master Doubly Linked List (DLL) operations, pointer manipulation, and bi-directional traversal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

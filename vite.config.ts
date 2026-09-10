@@ -14,9 +14,9 @@ export default defineConfig(() => {
     server: {
       host: '0.0.0.0',
       port: 3000,
+      allowedHosts: true as const,
       headers: {
         'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
@@ -28,9 +28,9 @@ export default defineConfig(() => {
     preview: {
       host: '0.0.0.0',
       port: 3000,
+      allowedHosts: true as const,
       headers: {
         'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
       },
     },

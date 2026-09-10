@@ -13,7 +13,6 @@ import { MainViewTab } from './types/game';
 import { SidebarNav } from './components/SidebarNav';
 import { TopHeader } from './components/TopHeader';
 import { HomePage } from './components/HomePage';
-import { LevelProgressBar } from './components/LevelProgressBar';
 import { CurrentKeyCard } from './components/CurrentKeyCard';
 import { HashTable } from './components/HashTable';
 import { ProbingController } from './components/ProbingController';

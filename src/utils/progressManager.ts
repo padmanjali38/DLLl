@@ -583,12 +583,22 @@ class ProgressManager {
 
     if (!wasAlreadyCompleted) {
       this.state.levelsCompleted.push(levelId);
+      this.state.totalScore = (this.state.totalScore || 0) + scoreAwarded;
     }
     if (isPerfect && !this.state.levelsMastered.includes(levelId)) {
       this.state.levelsMastered.push(levelId);
     }
 
     this.saveState();
+  }
+
+  public addScore(points: number) {
+    this.state.totalScore = (this.state.totalScore || 0) + points;
+    this.saveState();
+  }
+
+  public getTotalScore(): number {
+    return this.state.totalScore || 0;
   }
 
   public checkAndCompleteCertification() {

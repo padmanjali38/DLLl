@@ -91,11 +91,35 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
       id="app-top-header"
       className={`fixed top-0 right-0 left-0 ${
         isDesktopSidebarOpen ? 'lg:left-64' : 'lg:left-0'
-      } z-20 bg-white dark:bg-[#0B1120]/95 border-b border-slate-200 dark:border-slate-800/80 shadow-xs backdrop-blur-md transition-all duration-300`}
+      } z-20 w-full lg:w-auto bg-white dark:bg-[#0B1120]/95 border-b border-slate-200 dark:border-slate-800/80 shadow-xs backdrop-blur-md transition-all duration-300 m-0 p-0 ml-0 pl-0`}
+      style={{
+        marginLeft: 0,
+        paddingLeft: 0,
+      }}
     >
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left Side: 1. Menu Button (when sidebar is closed) -> 2. AlgoLearn Logo -> 3. Current Section */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+      <div
+        id="app-header-nav-container"
+        className="w-full flex items-center justify-between px-6 py-3 transition-all duration-300"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+          padding: '12px 24px',
+        }}
+      >
+        {/* Left Brand Group (Toggle Button + Logo) */}
+        <div
+          id="header-left-brand-group"
+          className="flex items-center gap-4 ml-0 pl-0 min-w-0"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginLeft: '0',
+            paddingLeft: '0',
+          }}
+        >
           {/* 1. THREE-BAR MENU / HAMBURGER BUTTON (Strictly visible ONLY when navigation sidebar is CLOSED) */}
           <button
             id="btn-sidebar-toggle"
@@ -113,7 +137,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </div>
 
           {/* 3. CURRENT PAGE / SECTION (SECONDARY) */}
-          <div className="hidden xs:flex items-center gap-2 pl-2.5 sm:pl-3 border-l border-slate-200 dark:border-slate-800 min-w-0">
+          <div className="hidden xs:flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-800 min-w-0">
             <span className="text-xs sm:text-sm font-semibold text-[#2563EB] dark:text-[#60A5FA] font-sans tracking-wide leading-none truncate">
               {pageName}
             </span>

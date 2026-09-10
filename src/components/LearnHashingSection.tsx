@@ -43,6 +43,7 @@ export interface TheoryChapter {
   formula?: string;
   formulaLabel?: string;
   codeSnippet?: {
+    c: string;
     cpp: string;
     java: string;
     python: string;
@@ -74,6 +75,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Node = { prev: Node*, data: Type, next: Node* }',
     formulaLabel: 'DOUBLY LINKED LIST NODE STRUCTURE',
     codeSnippet: {
+      c: `struct Node {\n    int data;\n    struct Node* prev;\n    struct Node* next;\n};\n\nstruct Node* createNode(int val) {\n    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));\n    if (newNode == NULL) return NULL;\n    newNode->data = val;\n    newNode->prev = NULL;\n    newNode->next = NULL;\n    return newNode;\n}`,
       cpp: `struct Node {\n    int data;\n    Node* prev;\n    Node* next;\n    Node(int val) : data(val), prev(nullptr), next(nullptr) {}\n};`,
       java: `class Node {\n    int data;\n    Node prev;\n    Node next;\n    Node(int data) {\n        this.data = data;\n        this.prev = null;\n        this.next = null;\n    }\n}`,
       python: `class Node:\n    def __init__(self, data):\n        self.data = data\n        self.prev = None\n        self.next = None`,
@@ -103,6 +105,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Total Node Bytes = sizeof(prev*) + sizeof(data) + sizeof(next*) + padding',
     formulaLabel: 'HEAP MEMORY CONSUMPTION EQUATION',
     codeSnippet: {
+      c: `// 64-bit architecture node sizing in C\nstruct Node {\n    int data;          // 4 bytes (+ 4 bytes alignment padding)\n    struct Node* prev; // 8 bytes pointer\n    struct Node* next; // 8 bytes pointer\n};\n// sizeof(struct Node) == 24 bytes on 64-bit architecture\nstruct Node* n = (struct Node*)malloc(sizeof(struct Node));`,
       cpp: `// 64-bit architecture node sizing\nsizeof(Node*) == 8 bytes;      // prev pointer\nsizeof(int)   == 4 bytes;      // data payload\nsizeof(Node*) == 8 bytes;      // next pointer\n// Total node size = 24 bytes (with 4-byte padding)`,
       java: `// In Java 64-bit JVM:\n// Object Header: 12-16 bytes\n// References (prev, next): 8 bytes each (or 4 with CompressedOOPs)\n// Primitive field: 4 bytes\n// Total ≈ 32-40 bytes per node`,
       python: `import sys\n# Python object overhead is ~56 bytes per Node instance\n# plus pointers to PyObject references`,
@@ -132,6 +135,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Boundary Invariants: head.prev == null && tail.next == null',
     formulaLabel: 'DOUBLY LINKED LIST INVARIANT',
     codeSnippet: {
+      c: `struct DoublyLinkedList {\n    struct Node* head;\n    struct Node* tail;\n    int size;\n};\n\nvoid initList(struct DoublyLinkedList* list) {\n    list->head = NULL;\n    list->tail = NULL;\n    list->size = 0;\n}\n\nbool isEmpty(const struct DoublyLinkedList* list) {\n    return list->head == NULL;\n}`,
       cpp: `class DoublyLinkedList {\npublic:\n    Node* head;\n    Node* tail;\n    int size;\n    DoublyLinkedList() : head(nullptr), tail(nullptr), size(0) {}\n    bool isEmpty() const { return head == nullptr; }\n};`,
       java: `public class DoublyLinkedList {\n    private Node head = null;\n    private Node tail = null;\n    private int size = 0;\n    public boolean isEmpty() { return head == null; }\n}`,
       python: `class DoublyLinkedList:\n    def __init__(self):\n        self.head = None\n        self.tail = None\n        self.size = 0\n    def is_empty(self):\n        return self.head is None`,
@@ -161,6 +165,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Forward: curr = curr.next  |  Backward: curr = curr.prev',
     formulaLabel: 'TRAVERSAL STEP OPERATIONS',
     codeSnippet: {
+      c: `void printForward(struct Node* head) {\n    struct Node* curr = head;\n    while (curr != NULL) {\n        printf("%d <-> ", curr->data);\n        curr = curr->next;\n    }\n    printf("NULL\\n");\n}\n\nvoid printBackward(struct Node* tail) {\n    struct Node* curr = tail;\n    while (curr != NULL) {\n        printf("%d <-> ", curr->data);\n        curr = curr->prev;\n    }\n    printf("NULL\\n");\n}`,
       cpp: `void printForward(Node* head) {\n    Node* curr = head;\n    while (curr != nullptr) {\n        cout << curr->data << " <-> ";\n        curr = curr->next;\n    }\n    cout << "NULL\\n";\n}\n\nvoid printBackward(Node* tail) {\n    Node* curr = tail;\n    while (curr != nullptr) {\n        cout << curr->data << " <-> ";\n        curr = curr->prev;\n    }\n    cout << "NULL\\n";\n}`,
       java: `public void traverseForward() {\n    Node curr = head;\n    while (curr != null) {\n        System.out.print(curr.data + " <-> ");\n        curr = curr.next;\n    }\n    System.out.println("null");\n}`,
       python: `def traverse_forward(self):\n    curr = self.head\n    while curr:\n        print(curr.data, end=" <-> ")\n        curr = curr.next\n    print("None")`,
@@ -191,6 +196,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'newNode.next = head; head.prev = newNode; head = newNode;',
     formulaLabel: 'HEAD INSERTION POINTER REWIRING',
     codeSnippet: {
+      c: `void insertAtHead(struct DoublyLinkedList* list, int val) {\n    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));\n    if (newNode == NULL) return;\n    newNode->data = val;\n    newNode->prev = NULL;\n    newNode->next = list->head;\n    if (list->head != NULL) {\n        list->head->prev = newNode;\n    } else {\n        list->tail = newNode; // List was empty\n    }\n    list->head = newNode;\n    list->size++;\n}`,
       cpp: `void insertAtHead(int val) {\n    Node* newNode = new Node(val);\n    newNode->next = head;\n    if (head != nullptr) {\n        head->prev = newNode;\n    } else {\n        tail = newNode; // List was empty\n    }\n    head = newNode;\n    size++;\n}`,
       java: `public void insertAtHead(int val) {\n    Node newNode = new Node(val);\n    newNode.next = head;\n    if (head != null) {\n        head.prev = newNode;\n    } else {\n        tail = newNode;\n    }\n    head = newNode;\n    size++;\n}`,
       python: `def insert_at_head(self, val):\n    new_node = Node(val)\n    new_node.next = self.head\n    if self.head is not None:\n        self.head.prev = new_node\n    else:\n        self.tail = new_node\n    self.head = new_node\n    self.size += 1`,
@@ -221,6 +227,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'newNode.prev = tail; tail.next = newNode; tail = newNode;',
     formulaLabel: 'TAIL INSERTION POINTER REWIRING',
     codeSnippet: {
+      c: `void insertAtTail(struct DoublyLinkedList* list, int val) {\n    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));\n    if (newNode == NULL) return;\n    newNode->data = val;\n    newNode->next = NULL;\n    newNode->prev = list->tail;\n    if (list->tail != NULL) {\n        list->tail->next = newNode;\n    } else {\n        list->head = newNode; // List was empty\n    }\n    list->tail = newNode;\n    list->size++;\n}`,
       cpp: `void insertAtTail(int val) {\n    Node* newNode = new Node(val);\n    newNode->prev = tail;\n    if (tail != nullptr) {\n        tail->next = newNode;\n    } else {\n        head = newNode; // List was empty\n    }\n    tail = newNode;\n    size++;\n}`,
       java: `public void insertAtTail(int val) {\n    Node newNode = new Node(val);\n    newNode.prev = tail;\n    if (tail != null) {\n        tail.next = newNode;\n    } else {\n        head = newNode;\n    }\n    tail = newNode;\n    size++;\n}`,
       python: `def insert_at_tail(self, val):\n    new_node = Node(val)\n    new_node.prev = self.tail\n    if self.tail is not None:\n        self.tail.next = new_node\n    else:\n        self.head = new_node\n    self.tail = new_node\n    self.size += 1`,
@@ -252,6 +259,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'newNode.next = curr; newNode.prev = curr.prev; curr.prev.next = newNode; curr.prev = newNode;',
     formulaLabel: '4-POINTER MIDDLE INSERTION SEQUENCE',
     codeSnippet: {
+      c: `void insertAtPosition(struct DoublyLinkedList* list, int index, int val) {\n    if (index == 0) { insertAtHead(list, val); return; }\n    if (index >= list->size) { insertAtTail(list, val); return; }\n    struct Node* curr = list->head;\n    for (int i = 0; i < index; i++) curr = curr->next;\n    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));\n    if (newNode == NULL) return;\n    newNode->data = val;\n    newNode->next = curr;\n    newNode->prev = curr->prev;\n    curr->prev->next = newNode;\n    curr->prev = newNode;\n    list->size++;\n}`,
       cpp: `void insertAtPosition(int index, int val) {\n    if (index == 0) { insertAtHead(val); return; }\n    if (index >= size) { insertAtTail(val); return; }\n    Node* curr = head;\n    for (int i = 0; i < index; i++) curr = curr->next;\n    Node* newNode = new Node(val);\n    newNode->next = curr;\n    newNode->prev = curr->prev;\n    curr->prev->next = newNode;\n    curr->prev = newNode;\n    size++;\n}`,
       java: `public void insertAtPosition(int index, int val) {\n    if (index == 0) { insertAtHead(val); return; }\n    if (index >= size) { insertAtTail(val); return; }\n    Node curr = head;\n    for (int i = 0; i < index; i++) curr = curr.next;\n    Node newNode = new Node(val);\n    newNode.next = curr;\n    newNode.prev = curr.prev;\n    curr.prev.next = newNode;\n    curr.prev = newNode;\n    size++;\n}`,
       python: `def insert_at_position(self, index, val):\n    if index == 0: return self.insert_at_head(val)\n    if index >= self.size: return self.insert_at_tail(val)\n    curr = self.head\n    for _ in range(index): curr = curr.next\n    new_node = Node(val)\n    new_node.next = curr\n    new_node.prev = curr.prev\n    curr.prev.next = new_node\n    curr.prev = new_node\n    self.size += 1`,
@@ -281,6 +289,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'head = head.next; if (head) head.prev = null; else tail = null;',
     formulaLabel: 'HEAD DELETION OPERATION',
     codeSnippet: {
+      c: `void deleteHead(struct DoublyLinkedList* list) {\n    if (list->head == NULL) return;\n    struct Node* temp = list->head;\n    list->head = list->head->next;\n    if (list->head != NULL) list->head->prev = NULL;\n    else list->tail = NULL;\n    free(temp);\n    list->size--;\n}\n\nvoid deleteTail(struct DoublyLinkedList* list) {\n    if (list->tail == NULL) return;\n    struct Node* temp = list->tail;\n    list->tail = list->tail->prev;\n    if (list->tail != NULL) list->tail->next = NULL;\n    else list->head = NULL;\n    free(temp);\n    list->size--;\n}`,
       cpp: `void deleteHead() {\n    if (head == nullptr) return;\n    Node* temp = head;\n    head = head->next;\n    if (head != nullptr) head->prev = nullptr;\n    else tail = nullptr;\n    delete temp;\n    size--;\n}\n\nvoid deleteTail() {\n    if (tail == nullptr) return;\n    Node* temp = tail;\n    tail = tail->prev;\n    if (tail != nullptr) tail->next = nullptr;\n    else head = nullptr;\n    delete temp;\n    size--;\n}`,
       java: `public void deleteHead() {\n    if (head == null) return;\n    head = head.next;\n    if (head != null) head.prev = null;\n    else tail = null;\n    size--;\n}`,
       python: `def delete_head(self):\n    if self.head is None: return\n    self.head = self.head.next\n    if self.head is not None:\n        self.head.prev = None\n    else:\n        self.tail = None\n    self.size -= 1`,
@@ -311,6 +320,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'target.prev.next = target.next; target.next.prev = target.prev; delete target;',
     formulaLabel: 'NODE BYPASS DELETION INVARIANT',
     codeSnippet: {
+      c: `void deleteNode(struct DoublyLinkedList* list, struct Node* target) {\n    if (target == NULL) return;\n    if (target == list->head) { deleteHead(list); return; }\n    if (target == list->tail) { deleteTail(list); return; }\n    target->prev->next = target->next;\n    target->next->prev = target->prev;\n    free(target);\n    list->size--;\n}`,
       cpp: `void deleteNode(Node* target) {\n    if (target == nullptr) return;\n    if (target == head) { deleteHead(); return; }\n    if (target == tail) { deleteTail(); return; }\n    target->prev->next = target->next;\n    target->next->prev = target->prev;\n    delete target;\n    size--;\n}`,
       java: `public void deleteNode(Node target) {\n    if (target == null) return;\n    if (target == head) { deleteHead(); return; }\n    if (target == tail) { deleteTail(); return; }\n    target.prev.next = target.next;\n    target.next.prev = target.prev;\n    size--;\n}`,
       python: `def delete_node(self, target):\n    if target is None: return\n    if target == self.head: return self.delete_head()\n    if target == self.tail: return self.delete_tail()\n    target.prev.next = target.next\n    target.next.prev = target.prev\n    self.size -= 1`,
@@ -340,6 +350,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'LRU Cache = Hash Map<Key, Node*> + Doubly Linked List<Key, Value>',
     formulaLabel: 'HYBRID LRU CACHE ARCHITECTURE',
     codeSnippet: {
+      c: `// LRU Cache Node linking pattern in C\nstruct CacheNode {\n    int key;\n    int value;\n    struct CacheNode* prev;\n    struct CacheNode* next;\n};\n\nstruct LRUCache {\n    int capacity;\n    int size;\n    struct CacheNode* head; // Most Recently Used\n    struct CacheNode* tail; // Least Recently Used\n};\n\nvoid detachNode(struct LRUCache* cache, struct CacheNode* node) {\n    if (node->prev != NULL) node->prev->next = node->next;\n    else cache->head = node->next;\n    if (node->next != NULL) node->next->prev = node->prev;\n    else cache->tail = node->prev;\n}`,
       cpp: `// LRU Cache Node linking pattern\nclass LRUCache {\n    int capacity;\n    unordered_map<int, Node*> map;\n    Node* head; // Most Recently Used\n    Node* tail; // Least Recently Used\npublic:\n    void moveToHead(Node* node) {\n        // O(1) detach and prepend\n        detachNode(node);\n        insertAtHead(node);\n    }\n};`,
       java: `// Java's LinkedHashMap internally uses a Doubly Linked List\n// to preserve insertion order and support LRU access order.\nMap<String, String> lruCache = new LinkedHashMap<>(16, 0.75f, true);`,
       python: `from collections import OrderedDict\n# Python's OrderedDict is implemented using a hash table\n# and a doubly linked list for O(1) reordering.`,
@@ -370,6 +381,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Time: Access O(N) | Search O(N) | Insert Ends O(1) | Delete Node O(1)',
     formulaLabel: 'BIG-O COMPLEXITY SUMMARY',
     codeSnippet: {
+      c: `// Complexity Benchmark Table (C Runtime):\n// Operation         | Array | Singly LL | Doubly LL\n// Access by Index   | O(1)  | O(N)      | O(N)\n// Insert at Head    | O(N)  | O(1)      | O(1)\n// Insert at Tail    | O(1)* | O(1)      | O(1)\n// Delete Tail       | O(1)  | O(N)      | O(1)  <-- DLL Key Win!\n// Delete given node | O(N)  | O(N)      | O(1)  <-- DLL Key Win!`,
       cpp: `// Complexity Benchmark Table:\n// Operation         | Array | Singly LL | Doubly LL\n// Access by Index   | O(1)  | O(N)      | O(N)\n// Insert at Head    | O(N)  | O(1)      | O(1)\n// Insert at Tail    | O(1)* | O(1)      | O(1)\n// Delete Tail       | O(1)  | O(N)      | O(1)  <-- DLL Key Win!\n// Delete given node | O(N)  | O(N)      | O(1)  <-- DLL Key Win!`,
       java: `// Memory Complexity: O(N)\n// Auxiliary Space for pointers: 2 * N * sizeof(reference)`,
       python: `# No amortized resize penalties like list.append() when doubling`,
@@ -399,6 +411,7 @@ export const THEORY_CHAPTERS: TheoryChapter[] = [
     formula: 'Memory Overhead = N * (2 * sizeof(pointer) + sizeof(data) + struct_padding)',
     formulaLabel: 'SPATIAL OVERHEAD FORMULA',
     codeSnippet: {
+      c: `// When NOT to use a Doubly Linked List in C:\n// 1. When high-speed random index access (arr[i]) is primary -> Use Static/Dynamic Array\n// 2. When memory is strictly constrained (embedded C systems) -> Use Singly Linked List\n// 3. When cache-conscious bulk numeric iterations are needed -> Use Contiguous Array\n// 4. Note: Each node requires free() to prevent memory leaks in C`,
       cpp: `// When NOT to use a Doubly Linked List:\n// 1. When high-speed random index access (arr[i]) is primary requirement -> Use Vector/Array\n// 2. When memory is strictly constrained (embedded systems) -> Use Singly Linked List or Array\n// 3. When cache-conscious bulk numeric iterations are needed -> Use Contiguous Array`,
       java: `// LinkedList in Java (Doubly Linked) vs ArrayList:\n// ArrayList<Integer> uses ~4-8 bytes per int\n// LinkedList<Integer> uses ~24-32 bytes per node + Integer object box!`,
       python: `# Python list uses contiguous array of pointers, faster than custom Node DLL for bulk reads`,
@@ -423,7 +436,7 @@ export const LearnHashingSection: React.FC<LearnHashingSectionProps> = ({
     return progressManager.getState().completedTheoryChapters || [];
   });
 
-  const [activeCodeLang, setActiveCodeLang] = useState<'cpp' | 'java' | 'python'>('cpp');
+  const [activeCodeLang, setActiveCodeLang] = useState<'c' | 'cpp' | 'java' | 'python'>('c');
 
   // Interactive Workbench States
   const [nodeDataInput, setNodeDataInput] = useState<number>(42);
@@ -692,7 +705,7 @@ export const LearnHashingSection: React.FC<LearnHashingSectionProps> = ({
                   Code Implementation
                 </span>
                 <div className="flex items-center gap-1.5">
-                  {(['cpp', 'java', 'python'] as const).map((lang) => (
+                  {(['c', 'cpp', 'java', 'python'] as const).map((lang) => (
                     <button
                       key={lang}
                       onClick={() => setActiveCodeLang(lang)}
@@ -702,7 +715,7 @@ export const LearnHashingSection: React.FC<LearnHashingSectionProps> = ({
                           : 'bg-slate-100 dark:bg-blue-950/40 text-slate-600 dark:text-blue-300 hover:bg-slate-200'
                       }`}
                     >
-                      {lang === 'cpp' ? 'C++' : lang === 'java' ? 'Java' : 'Python'}
+                      {lang === 'c' ? 'C' : lang === 'cpp' ? 'C++' : lang === 'java' ? 'Java' : 'Python'}
                     </button>
                   ))}
                 </div>

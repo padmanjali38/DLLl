@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { GameState, LevelConfig, ProbeStep, TableSlot, TechniqueType } from './types/game';
 import { GAME_LEVELS } from './data/levels';
 import {
@@ -93,9 +93,54 @@ export default function App() {
   const [streak, setStreak] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [gameResetCount, setGameResetCount] = useState<number>(0);
 
   // Trigger scroll-to-reveal animations on tab and level changes
   useScrollReveal([activeTab, currentLevelIndex]);
+
+  // Set manual scroll restoration so browser does not preserve scroll across SPA view changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
+  // Automatically scroll to the very top (0, 0) whenever navigating between main pages/sections
+  useLayoutEffect(() => {
+    const performScrollToTop = () => {
+      const html = document.documentElement;
+      const originalScrollBehavior = html.style.scrollBehavior;
+      // Temporarily disable smooth scroll so the new page renders immediately at the top without visual gliding
+      html.style.scrollBehavior = 'auto';
+
+      if (typeof window !== 'undefined') {
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+        } catch {
+          window.scrollTo(0, 0);
+        }
+      }
+
+      html.scrollTop = 0;
+      html.scrollLeft = 0;
+      if (document.body) {
+        document.body.scrollTop = 0;
+        document.body.scrollLeft = 0;
+      }
+
+      // Restore original scroll behavior on the next frame so intra-page smooth scrolling is preserved
+      requestAnimationFrame(() => {
+        html.style.scrollBehavior = originalScrollBehavior;
+      });
+    };
+
+    // Scroll immediately when the new main view tab is rendered
+    performScrollToTop();
+
+    // Also ensure position is pinned at top after newly rendered DOM layout settles
+    const rafId = requestAnimationFrame(performScrollToTop);
+    return () => cancelAnimationFrame(rafId);
+  }, [activeTab]);
 
   // Monitor for progress updates and 100% completion event across the application
   useEffect(() => {
@@ -648,6 +693,9 @@ export default function App() {
             {(activeTab === 'GAME' || activeTab === 'QUEST') && (
               <div className="flex flex-col gap-6 animate-page-enter">
                 <DLLMasterGame
+                  key={`dll-master-game-${gameResetCount}`}
+                  resetTrigger={gameResetCount}
+                  onResetRequest={() => setShowResetModal(true)}
                   onOpenTheory={() => {
                     setActiveTheoryTopic('theory-01');
                     setActiveTab('THEORY');
@@ -752,13 +800,22 @@ export default function App() {
       <ResetProgressModal
         isOpen={showResetModal}
         onClose={() => setShowResetModal(false)}
+        title="RESET PROGRESS?"
+        confirmationMessage="Are you sure you want to reset your learning progress? All completed theory chapters, watched videos, completed game levels, quiz progress, and mastery progress will be reset."
+        cancelText="EXIT"
+        confirmText="RESET"
         onConfirm={() => {
+          localStorage.removeItem('dll_master_game_completed_tasks_v4');
+          localStorage.removeItem('dsa_game_completed_tasks_v1');
+          localStorage.removeItem('hash_quest_quiz_answers_v3');
+          localStorage.removeItem('hash_quest_quiz_submitted_v3');
           progressManager.resetProgress();
           setScore(0);
           setStreak(0);
           setCompletedLevels([]);
           setCurrentLevelIndex(0);
           initLevel(0);
+          setGameResetCount((c) => c + 1);
           setShowResetModal(false);
         }}
       />

@@ -324,12 +324,32 @@ class ProgressManager {
     };
   }
 
-  // 3. GAME STATS (8 Levels)
+  // 3. GAME STATS (3 DLL Levels)
   public getGameStats() {
-    const rawList = Array.isArray(this.state.levelsCompleted) ? this.state.levelsCompleted : [];
-    const completedList = Array.from(new Set(rawList.filter((lvl) => lvl >= 1 && lvl <= 8)));
-    const completed = Math.min(8, completedList.length);
-    const total = 8;
+    let rawList = Array.isArray(this.state.levelsCompleted) ? [...this.state.levelsCompleted] : [];
+
+    // Check completed tasks from storage to ensure consistency across page reloads
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('dll_master_game_completed_tasks_v4');
+        if (saved) {
+          const taskIds: string[] = JSON.parse(saved);
+          const level1Done = ['dll-task-1-1', 'dll-task-1-2', 'dll-task-1-3'].every((id) => taskIds.includes(id));
+          const level2Done = ['dll-task-2-1', 'dll-task-2-2', 'dll-task-2-3'].every((id) => taskIds.includes(id));
+          const level3Done = ['dll-task-3-1', 'dll-task-3-2', 'dll-task-3-3'].every((id) => taskIds.includes(id));
+
+          if (level1Done && !rawList.includes(1)) rawList.push(1);
+          if (level2Done && !rawList.includes(2)) rawList.push(2);
+          if (level3Done && !rawList.includes(3)) rawList.push(3);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const completedList = Array.from(new Set(rawList.filter((lvl) => lvl >= 1 && lvl <= 3)));
+    const completed = Math.min(3, completedList.length);
+    const total = 3;
     const percentage = Math.round((completed / total) * 100);
 
     return {
@@ -417,21 +437,21 @@ class ProgressManager {
     });
   }
 
-  // OVERALL PROGRESS (20 Unique Activities)
+  // OVERALL PROGRESS (18 Unique Activities)
   public getStats() {
     const theory = this.getTheoryStats();
     const video = this.getVideoStats();
     const game = this.getGameStats();
     const quiz = this.getQuizStats();
 
-    // Exactly 23 distinct measurable learning activities:
-    // 12 Theory Modules + 8 Game Levels + 2 Videos + 1 Quiz
-    const total = 23;
+    // Exactly 18 distinct measurable learning activities:
+    // 12 Theory Modules + 3 DLL Game Levels + 2 Videos + 1 Quiz
+    const total = 18;
     const completed = theory.completed + video.completed + game.completed + quiz.completed;
     const isAllComplete =
       theory.completed === 12 &&
       video.completed === 2 &&
-      game.completed === 8 &&
+      game.completed === 3 &&
       quiz.completed === 1;
 
     // Strict 100% calculation: exactly 100% ONLY when every activity is finished
@@ -648,6 +668,8 @@ class ProgressManager {
       try {
         localStorage.removeItem('hash_quest_quiz_answers_v3');
         localStorage.removeItem('hash_quest_quiz_submitted_v3');
+        localStorage.removeItem('dll_master_game_completed_tasks_v4');
+        localStorage.removeItem('dsa_game_completed_tasks_v1');
       } catch {
         // Ignore storage errors
       }

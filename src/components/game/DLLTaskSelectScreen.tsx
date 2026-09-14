@@ -8,6 +8,7 @@ interface DLLTaskSelectScreenProps {
   completedTaskIds: string[];
   onBackToLevels: () => void;
   onSelectTask: (task: DLLTask) => void;
+  onResetGame?: () => void;
 }
 
 export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
@@ -15,6 +16,7 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
   completedTaskIds,
   onBackToLevels,
   onSelectTask,
+  onResetGame,
 }) => {
   const getTaskIcon = (taskNum: number, levelNum: number) => {
     if (levelNum === 1) {
@@ -39,8 +41,8 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
           TOP NAVIGATION & HEADER
           ========================================================================= */}
       <div className="flex flex-col gap-4">
-        {/* Back Button & Level Badge */}
-        <div className="flex items-center justify-between">
+        {/* Back Button & Level Badge & Reset */}
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={onBackToLevels}
@@ -50,9 +52,25 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
             <span>Back to Topics</span>
           </button>
 
-          <span className="text-xs font-mono font-bold text-[#2563EB] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3 py-1 rounded-xl border border-blue-100 dark:border-blue-900/40">
-            {level.badge} • {level.title}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-[#2563EB] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3 py-1 rounded-xl border border-blue-100 dark:border-blue-900/40">
+              {level.badge} • {level.title}
+            </span>
+
+            {onResetGame && (
+              <button
+                id="btn-dll-tasks-reset"
+                type="button"
+                onClick={onResetGame}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-[#111827] hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200/90 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                title="Reset all game progress"
+                aria-label="Reset all game progress"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Title & Subtitle */}
@@ -61,7 +79,9 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
             Hands-on Tasks
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            Complete the tasks by understanding and manipulating the doubly linked list.
+            {level.number === 1
+              ? 'Build your Doubly Linked List foundation by understanding nodes, creating nodes, connecting pointers, and traversing the list.'
+              : level.description}
           </p>
         </div>
       </div>

@@ -74,14 +74,14 @@ export interface DLLLevel {
 
 export const DLL_LEVELS: DLLLevel[] = [
   // =========================================================================
-  // LEVEL 1 — DOUBLY LINKED LIST
+  // LEVEL 1 — DLL FOUNDATIONS
   // =========================================================================
   {
     id: 'dll-concepts',
     number: 1,
-    title: 'Doubly Linked List',
+    title: 'DLL Foundations',
     badge: 'Level 1',
-    description: 'Understand DLL node structure, node creation, building the list, and pointer traversal.',
+    description: 'Understand how a Doubly Linked List works, create and connect nodes, and learn how PREV and NEXT pointers move through the list.',
     taskCount: 3,
     tasks: [
       {
@@ -90,7 +90,7 @@ export const DLL_LEVELS: DLLLevel[] = [
         taskNumber: 1,
         title: 'Creating a Node',
         description: 'Create and initialize a new DLL node.',
-        instruction: 'Create a new DLL node with DATA = 5. Initialize both PREV and NEXT to NULL.',
+        instruction: 'Construct a standalone Doubly Linked List node with DATA = 5, PREV = NULL, and NEXT = NULL.',
         xp: 25,
         taskType: 'create_node',
         hint: 'The new node contains DATA = 5 and is not connected yet, so PREV and NEXT are NULL.',
@@ -205,21 +205,21 @@ export const DLL_LEVELS: DLLLevel[] = [
         guidedSteps: [
           {
             step: 1,
-            operationText: 'Place HEAD node (10) into Slot 1.',
+            operationText: 'Place HEAD node (10 at 0x1000) into Slot 1.',
             explanation: 'Start traversal at HEAD (address 0x1000, value 10).',
-            action: { type: 'traverse', traverseData: 10 },
+            action: { type: 'traverse', nodeAddress: '0x1000', traverseData: 10 },
           },
           {
             step: 2,
-            operationText: 'Follow NEXT to place node 20 into Slot 2.',
+            operationText: 'Follow NEXT to place node 20 (0x1008) into Slot 2.',
             explanation: 'Node 10 NEXT pointer (0x1008) leads to node 20.',
-            action: { type: 'traverse', traverseData: 20 },
+            action: { type: 'traverse', nodeAddress: '0x1008', traverseData: 20 },
           },
           {
             step: 3,
-            operationText: 'Follow NEXT to place TAIL node 30 into Slot 3.',
+            operationText: 'Follow NEXT to place TAIL node 30 (0x1010) into Slot 3.',
             explanation: 'Node 20 NEXT pointer (0x1010) leads to node 30 (NEXT is NULL, ending traversal).',
-            action: { type: 'traverse', traverseData: 30 },
+            action: { type: 'traverse', nodeAddress: '0x1010', traverseData: 30 },
           },
         ],
       },
@@ -234,7 +234,7 @@ export const DLL_LEVELS: DLLLevel[] = [
     number: 2,
     title: 'Insertion',
     badge: 'Level 2',
-    description: 'Create a new node and insert it correctly into a Doubly Linked List.',
+    description: 'Create a new node and insert it at the beginning, end, or a chosen position while correctly updating the required PREV, NEXT, HEAD, and TAIL pointers.',
     taskCount: 3,
     tasks: [
       {
@@ -416,7 +416,7 @@ export const DLL_LEVELS: DLLLevel[] = [
     number: 3,
     title: 'Deletion',
     badge: 'Level 3',
-    description: 'Practice deleting nodes from different positions in a DLL.',
+    description: 'Learn how to remove nodes from different positions and reconnect the remaining nodes while keeping the DLL structure correct.',
     taskCount: 3,
     tasks: [
       {

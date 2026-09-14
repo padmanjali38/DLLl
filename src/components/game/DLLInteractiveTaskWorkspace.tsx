@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   RotateCcw,
+  Undo2,
   Lightbulb,
   Award,
   ArrowRight,
@@ -26,6 +28,15 @@ import {
 } from './dllGameData';
 import { soundManager } from '../../utils/audio';
 
+export interface HistorySnapshot {
+  nodes: DLLNodeState[];
+  headAddress: string | null;
+  tailAddress: string | null;
+  traversalSlots: (string | null)[];
+  hasCreatedNode: boolean;
+  nodeBuilderSlots?: { prev: string | null; data: string | null; next: string | null };
+}
+
 export interface GuidedStepHistoryItem {
   stepNumber: number;
   operationText?: string;
@@ -35,9 +46,11 @@ export interface GuidedStepHistoryItem {
 interface DLLInteractiveTaskWorkspaceProps {
   task: DLLTask;
   isAlreadyCompleted: boolean;
+  isFinalTask?: boolean;
   onBackToTasks: () => void;
   onTaskSolved: (taskId: string, xp: number) => void;
   onNextTask?: () => void;
+  onResetGame?: () => void;
 }
 
 interface DLLValidationResult {
@@ -64,7 +77,7 @@ export const validateDLLState = (
   currentHead?: string | null,
   currentTail?: string | null,
   nodeBuilderSlots?: { prev: string | null; data: string | null; next: string | null },
-  traversalSlots?: (number | null)[]
+  traversalSlots?: (string | number | null)[]
 ): DLLValidationResult => {
   // 1. Concept Task
   if (task.taskType === 'concept') {
@@ -84,8 +97,89 @@ export const validateDLLState = (
     };
   }
 
-  // 2. Task 1: Creating a Node (task.taskType === 'create_node' or task.id === 'task-1-1')
+  // 2. Task 1: Creating a Node (task.taskType === 'create_node' || task.id === 'task-1-1')
   if (task.taskType === 'create_node' || task.id === 'task-1-1') {
+    const targetData = task.newNodeConfig?.data ?? 5;
+
+    // Check nodeBuilderSlots first if provided
+    if (nodeBuilderSlots) {
+      const { prev, data, next } = nodeBuilderSlots;
+
+      // 1. DATA slot check
+      if (data === null || data === '' || data === undefined) {
+        return {
+          isValid: false,
+          title: 'Incomplete',
+          message: 'The DATA field is still empty.',
+          explanation: 'Set the DATA value of the new node according to the question.',
+        };
+      }
+
+      const dataNum = Number(data);
+      if (dataNum === 0) {
+        return {
+          isValid: false,
+          title: 'Wrong answer',
+          message: 'The DATA value is still 0.',
+          explanation: `The task requires DATA = ${targetData}. Set the DATA value of the new node according to the question.`,
+        };
+      }
+
+      if (isNaN(dataNum) || dataNum !== targetData) {
+        return {
+          isValid: false,
+          title: 'Wrong answer',
+          message: 'The DATA value is incorrect.',
+          explanation: `The task requires DATA = ${targetData}. DATA = ${data} is not the required value.`,
+        };
+      }
+
+      // 2. PREV slot check
+      if (prev === null || prev === '' || prev === undefined) {
+        return {
+          isValid: false,
+          title: 'Incomplete',
+          message: 'The PREV field is still empty.',
+          explanation: 'Good. Now complete the remaining pointer fields.',
+        };
+      }
+
+      if (!isNullPointer(prev)) {
+        return {
+          isValid: false,
+          title: 'Wrong answer',
+          message: 'Wrong pointer in PREV.',
+          explanation: 'Think about what PREV should point to when the node is not connected yet.',
+        };
+      }
+
+      // 3. NEXT slot check
+      if (next === null || next === '' || next === undefined) {
+        return {
+          isValid: false,
+          title: 'Incomplete',
+          message: 'The NEXT field is still empty.',
+          explanation: 'Good. Now complete the remaining pointer fields.',
+        };
+      }
+
+      if (!isNullPointer(next)) {
+        return {
+          isValid: false,
+          title: 'Wrong answer',
+          message: 'Wrong pointer in NEXT.',
+          explanation: 'Check the required NEXT value for a newly created standalone node.',
+        };
+      }
+
+      return {
+        isValid: true,
+        title: 'Correct!',
+        message: 'Node created successfully!',
+        explanation: 'Node construction completed successfully.',
+      };
+    }
+
     const activeNodes = currentNodes.filter((n) => !n.isDeleted);
     if (activeNodes.length === 0) {
       return {
@@ -111,41 +205,42 @@ export const validateDLLState = (
     if (dataNum === 0) {
       return {
         isValid: false,
-        title: 'Incomplete',
-        message: 'The node DATA is still 0.',
-        explanation: 'Click the DATA field on the node to change it from 0 to 5.',
+        title: 'Wrong answer',
+        message: 'The DATA value is still 0.',
+        explanation: `The task requires DATA = ${targetData}. Set the DATA value of the new node according to the question.`,
       };
     }
-    if (dataNum !== 5) {
+
+    if (isNaN(dataNum) || dataNum !== targetData) {
       return {
         isValid: false,
-        title: 'Wrong Answer',
-        message: `Wrong answer. DATA must be 5, not ${node.data}.`,
-        explanation: 'The task requires setting the node DATA to exact value 5.',
+        title: 'Wrong answer',
+        message: 'The DATA value is incorrect.',
+        explanation: `The task requires DATA = ${targetData}. DATA = ${node.data} is not the required value.`,
       };
     }
     if (!isNullPointer(node.prev)) {
       return {
         isValid: false,
-        title: 'Wrong Pointer',
-        message: 'Wrong pointer. PREV must be NULL for a standalone node.',
-        explanation: 'Because this node is isolated, its backward PREV pointer points to NULL.',
+        title: 'Wrong answer',
+        message: 'Wrong pointer in PREV.',
+        explanation: 'Think about what PREV should point to when the node is not connected yet.',
       };
     }
     if (!isNullPointer(node.next)) {
       return {
         isValid: false,
-        title: 'Wrong Pointer',
-        message: 'Wrong pointer. NEXT must be NULL for a standalone node.',
-        explanation: 'Because this node is not linked to a successor, its NEXT pointer points to NULL.',
+        title: 'Wrong answer',
+        message: 'Wrong pointer in NEXT.',
+        explanation: 'Check the required NEXT value for a newly created standalone node.',
       };
     }
 
     return {
       isValid: true,
       title: 'Correct!',
-      message: 'Node 5 was created successfully!',
-      explanation: 'The new node contains DATA = 5 with PREV and NEXT correctly initialized to NULL.',
+      message: 'Node created successfully!',
+      explanation: 'Node construction completed successfully.',
     };
   }
 
@@ -263,32 +358,80 @@ export const validateDLLState = (
 
   // 4. Task 3: Traversal in DLL (task.taskType === 'traverse' or task.id === 'task-1-3')
   if (task.taskType === 'traverse' || task.id === 'task-1-3') {
-    const expected = task.expectedTraversal || [10, 20, 30];
+    const activeNodes = currentNodes.filter((n) => !n.isDeleted);
+    const nodeMap = new Map<string, DLLNodeState>();
+    for (const n of activeNodes) {
+      nodeMap.set(normalizeAddress(n.address), n);
+    }
+
+    // Determine the expected sequence of nodes by starting from HEAD and following NEXT
+    let headAddr = currentHead ? normalizeAddress(currentHead) : null;
+    if (!headAddr) {
+      const headCand = activeNodes.find((n) => isNullPointer(n.prev));
+      if (headCand) headAddr = normalizeAddress(headCand.address);
+      else if (activeNodes.length > 0) headAddr = normalizeAddress(activeNodes[0].address);
+    }
+
+    const expectedSequence: DLLNodeState[] = [];
+    let curr: string | null = headAddr;
+    const visited = new Set<string>();
+    while (curr && !isNullPointer(curr) && !visited.has(curr)) {
+      visited.add(curr);
+      const node = nodeMap.get(curr);
+      if (!node) break;
+      expectedSequence.push(node);
+      curr = normalizeAddress(node.next);
+    }
+
+    // If pointers were not connected, fallback to activeNodes
+    if (expectedSequence.length < activeNodes.length) {
+      for (const n of activeNodes) {
+        if (!visited.has(normalizeAddress(n.address))) {
+          expectedSequence.push(n);
+        }
+      }
+    }
+
     const slots = traversalSlots || [];
 
-    if (slots.length < expected.length || slots.some((s) => s === null)) {
+    if (slots.length < expectedSequence.length || slots.slice(0, expectedSequence.length).some((s) => s === null)) {
       return {
         isValid: false,
         title: 'Incomplete',
         message: 'Place all nodes into the traversal order.',
-        explanation: `There are ${expected.length} nodes in the list. Drag each node into its corresponding position.`,
+        explanation: `There are ${expectedSequence.length} nodes in the list. Drag each node into its corresponding position.`,
       };
     }
 
-    for (let i = 0; i < expected.length; i++) {
-      if (slots[i] !== expected[i]) {
+    for (let i = 0; i < expectedSequence.length; i++) {
+      const slotVal = slots[i];
+      if (slotVal === null) {
+        return {
+          isValid: false,
+          title: 'Incomplete',
+          message: `Position ${i + 1} is empty.`,
+          explanation: `Place the next node into position ${i + 1}.`,
+        };
+      }
+
+      const expNode = expectedSequence[i];
+      const slotStr = String(slotVal);
+      const isAddressMatch = arePointersEqual(slotStr, expNode.address);
+      const isDataMatch = Number(slotVal) === expNode.data;
+
+      if (!isAddressMatch && !isDataMatch) {
         if (i === 0) {
           return {
             isValid: false,
             title: 'Wrong Order',
-            message: 'Traversal order is incorrect. Traversal must start from HEAD (node 10).',
+            message: `Traversal order is incorrect. Traversal must start from HEAD (node ${expNode.data} at ${expNode.address}).`,
             explanation: 'Start at the HEAD of the list and follow NEXT pointers forward.',
           };
         } else {
           return {
             isValid: false,
             title: 'Wrong Order',
-            message: `Traversal order is incorrect at position ${i + 1}. Expected node ${expected[i]}, but found ${slots[i]}.`,
+            message: `Traversal order is incorrect at position ${i + 1}. Expected node ${expNode.data} (${expNode.address}).`,
             explanation: "Follow each node's NEXT pointer from HEAD to find the correct sequence.",
           };
         }
@@ -299,7 +442,7 @@ export const validateDLLState = (
       isValid: true,
       title: 'Correct!',
       message: 'Traversal completed successfully!',
-      explanation: 'You started at HEAD and followed each NEXT pointer until reaching TAIL: 10 → 20 → 30.',
+      explanation: `You started at HEAD and followed each NEXT pointer until reaching TAIL: ${expectedSequence.map((n) => n.data).join(' → ')}.`,
     };
   }
 
@@ -651,6 +794,19 @@ export const validateDLLState = (
       nodeMap.set(normalizeAddress(n.address), n);
     }
 
+    // Check if any node other than target node 10 (0x1000) was deleted
+    const wrongDeleted = currentNodes.find(
+      (n) => n.isDeleted && !arePointersEqual(n.address, '0x1000')
+    );
+    if (wrongDeleted) {
+      return {
+        isValid: false,
+        title: 'Wrong node',
+        message: 'This is not the node requested by the task.',
+        explanation: `The task asks you to delete node 10. You selected node ${wrongDeleted.data}. Choose the node specified in the question.`,
+      };
+    }
+
     // Node 10 must be deleted
     if (nodeMap.has('0x1000')) {
       return {
@@ -724,7 +880,7 @@ export const validateDLLState = (
     return {
       isValid: true,
       title: 'Correct!',
-      message: 'Node 10 was deleted from the beginning successfully!',
+      message: 'Correct! The requested node was deleted and the DLL pointers were updated correctly.',
       explanation: 'HEAD was updated to node 20, and node 20 PREV was set to NULL.',
     };
   }
@@ -735,6 +891,19 @@ export const validateDLLState = (
     const nodeMap = new Map<string, DLLNodeState>();
     for (const n of activeNodes) {
       nodeMap.set(normalizeAddress(n.address), n);
+    }
+
+    // Check if any node other than target node 30 (0x1010) was deleted
+    const wrongDeleted = currentNodes.find(
+      (n) => n.isDeleted && !arePointersEqual(n.address, '0x1010')
+    );
+    if (wrongDeleted) {
+      return {
+        isValid: false,
+        title: 'Wrong node',
+        message: 'This is not the node requested by the task.',
+        explanation: `The task asks you to delete node 30. You selected node ${wrongDeleted.data}. Choose the node specified in the question.`,
+      };
     }
 
     // Node 30 must be deleted
@@ -810,7 +979,7 @@ export const validateDLLState = (
     return {
       isValid: true,
       title: 'Correct!',
-      message: 'Node 30 was deleted from the end successfully!',
+      message: 'Correct! The requested node was deleted and the DLL pointers were updated correctly.',
       explanation: 'TAIL was updated to node 20, and node 20 NEXT was set to NULL.',
     };
   }
@@ -821,6 +990,19 @@ export const validateDLLState = (
     const nodeMap = new Map<string, DLLNodeState>();
     for (const n of activeNodes) {
       nodeMap.set(normalizeAddress(n.address), n);
+    }
+
+    // Check if any node other than target node 30 (0x1010) was deleted
+    const wrongDeleted = currentNodes.find(
+      (n) => n.isDeleted && !arePointersEqual(n.address, '0x1010')
+    );
+    if (wrongDeleted) {
+      return {
+        isValid: false,
+        title: 'Wrong node',
+        message: 'This is not the node requested by the task.',
+        explanation: `The task asks you to delete node 30. You selected node ${wrongDeleted.data}. Choose the node specified in the question.`,
+      };
     }
 
     // Node 30 must be deleted
@@ -892,7 +1074,7 @@ export const validateDLLState = (
     return {
       isValid: true,
       title: 'Correct!',
-      message: 'Node 30 was deleted and neighbors reconnected successfully!',
+      message: 'Correct! The requested node was deleted and the DLL pointers were updated correctly.',
       explanation: 'Node 20 NEXT points directly to node 40, and node 40 PREV points back to node 20.',
     };
   }
@@ -1173,6 +1355,7 @@ export const validateDLLState = (
 
 // Helper to determine initial HEAD address from task definition
 const getInitialHeadAddress = (t: DLLTask): string | null => {
+  if (t.taskType === 'create_node') return null;
   const found = t.initialNodes.find((n) => isNullPointer(n.prev));
   if (found) return normalizeAddress(found.address);
   return t.initialNodes[0] ? normalizeAddress(t.initialNodes[0].address) : null;
@@ -1180,6 +1363,7 @@ const getInitialHeadAddress = (t: DLLTask): string | null => {
 
 // Helper to determine initial TAIL address from task definition
 const getInitialTailAddress = (t: DLLTask): string | null => {
+  if (t.taskType === 'create_node') return null;
   const found = t.initialNodes.find((n) => isNullPointer(n.next));
   if (found) return normalizeAddress(found.address);
   return t.initialNodes[t.initialNodes.length - 1]
@@ -1397,9 +1581,11 @@ export const computeDLLLayout = (
 export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspaceProps> = ({
   task,
   isAlreadyCompleted,
+  isFinalTask = false,
   onBackToTasks,
   onTaskSolved,
   onNextTask,
+  onResetGame,
 }) => {
   // Local editable state of nodes — single source of truth initialized with normalized addresses
   const [nodes, setNodes] = useState<DLLNodeState[]>(() =>
@@ -1423,7 +1609,11 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
 
   // Create Node Panel / Modal State
   const [isCreateNodeOpen, setIsCreateNodeOpen] = useState<boolean>(false);
-  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+  const [statusNotice, setStatusNotice] = useState<{
+    type: 'success' | 'error' | 'info';
+    title?: string;
+    message: string;
+  } | string | null>(null);
   const [justUpdatedNode, setJustUpdatedNode] = useState<string | null>(null);
 
   // Concept task tracking (which fields were explored)
@@ -1439,30 +1629,43 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     if (task.taskType !== 'insert' || !task.newNodeConfig) return true;
     return task.initialNodes.some((n) => arePointersEqual(n.address, task.newNodeConfig!.address));
   });
-  const [nodeCreationData, setNodeCreationData] = useState<number>(() => {
-    return task.newNodeConfig?.data ?? 5;
-  });
+  const [nodeCreationData, setNodeCreationData] = useState<number>(0);
   const [isJustCreated, setIsJustCreated] = useState<boolean>(false);
 
   // Traversal task tracking
   const [visitedSequence, setVisitedSequence] = useState<number[]>([]);
 
+  // Action History Stack for UNDO functionality
+  const [history, setHistory] = useState<HistorySnapshot[]>([]);
+
   // Progressive wrong-answer attempt count
   const [attemptCount, setAttemptCount] = useState<number>(0);
 
-  // Level 1 Task 2: Interactive Node Builder slots & selected chip
+  // Level 1 Task 1: Interactive Node Builder slots & selected chip
   const [nodeBuilderSlots, setNodeBuilderSlots] = useState<{
     prev: string | null;
     data: string | null;
     next: string | null;
-  }>({ prev: null, data: null, next: null });
+  }>(() => ({
+    prev: null,
+    data: task.taskType === 'create_node' ? '0' : null,
+    next: null,
+  }));
   const [selectedBuilderChip, setSelectedBuilderChip] = useState<{ id: string; val: string } | null>(null);
 
-  // Level 1 Task 3: Traversal slots & selected chip (dynamically sized to match node count)
-  const [traversalSlots, setTraversalSlots] = useState<(number | null)[]>(() =>
+  // Level 1 Task 3: Traversal slots & selected chip (dynamically sized to match node count, tracks node addresses)
+  const [traversalSlots, setTraversalSlots] = useState<(string | null)[]>(() =>
     new Array(task.initialNodes.length).fill(null)
   );
-  const [selectedTraversalVal, setSelectedTraversalVal] = useState<number | null>(null);
+  const [selectedTraversalVal, setSelectedTraversalVal] = useState<string | null>(null);
+
+  // Direct Node DATA Edit Modal State
+  const [editingData, setEditingData] = useState<{
+    nodeAddress: string;
+    currentData: number;
+  } | null>(null);
+  const [inputDataValue, setInputDataValue] = useState<number>(0);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   // Pointer Edit Modal State
   const [editingPointer, setEditingPointer] = useState<{
@@ -1474,7 +1677,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   const [pointerError, setPointerError] = useState<string | null>(null);
 
   // Feedback State
-  const [validationStatus, setValidationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [validationStatus, setValidationStatus] = useState<'idle' | 'success' | 'error' | 'warning'>('idle');
   const [feedbackTitle, setFeedbackTitle] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackExplanation, setFeedbackExplanation] = useState<string | null>(null);
@@ -1527,6 +1730,85 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     }
   }, [highlightedPointer]);
 
+  // Push snapshot to history stack for UNDO
+  const pushHistorySnapshot = () => {
+    setHistory((prev) => [
+      ...prev,
+      {
+        nodes: nodes.map((n) => ({ ...n })),
+        headAddress,
+        tailAddress,
+        traversalSlots: [...traversalSlots],
+        hasCreatedNode,
+        nodeBuilderSlots: { ...nodeBuilderSlots },
+      },
+    ]);
+  };
+
+  // Undo last user action
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    soundManager.playClick();
+    const previousState = history[history.length - 1];
+    setHistory((prev) => prev.slice(0, prev.length - 1));
+
+    setNodes(previousState.nodes.map((n) => ({ ...n })));
+    setHeadAddress(previousState.headAddress);
+    setTailAddress(previousState.tailAddress);
+    setTraversalSlots([...previousState.traversalSlots]);
+    setHasCreatedNode(previousState.hasCreatedNode);
+    if (previousState.nodeBuilderSlots) {
+      setNodeBuilderSlots({ ...previousState.nodeBuilderSlots });
+    }
+
+    setValidationStatus('idle');
+    setFeedbackTitle(null);
+    setFeedbackMessage(null);
+    setFeedbackExplanation(null);
+    setStatusNotice('Action undone.');
+  };
+
+  // Open DATA edit modal
+  const handleOpenEditData = (nodeAddress: string, currentData: number) => {
+    // Restrict editing DATA to new nodes only (isNewNode or create_node task).
+    // Existing DLL nodes must remain read-only.
+    const targetNode = nodes.find((n) => arePointersEqual(n.address, nodeAddress));
+    if (targetNode && !targetNode.isNewNode && task.taskType !== 'create_node') {
+      return;
+    }
+    soundManager.playClick();
+    setEditingData({ nodeAddress, currentData });
+    setInputDataValue(currentData);
+    setDataError(null);
+  };
+
+  // Submit DATA update
+  const handleUpdateData = () => {
+    if (!editingData) return;
+    if (isNaN(inputDataValue)) {
+      setDataError('Please enter a valid integer for DATA.');
+      return;
+    }
+    soundManager.playClick();
+    pushHistorySnapshot();
+    setNodes((prev) =>
+      prev.map((n) =>
+        arePointersEqual(n.address, editingData.nodeAddress)
+          ? { ...n, data: inputDataValue }
+          : n
+      )
+    );
+    if (task.taskType === 'create_node') {
+      setNodeBuilderSlots((prev) => ({ ...prev, data: String(inputDataValue) }));
+    }
+    setEditingData(null);
+    setStatusNotice(`Node ${editingData.nodeAddress} DATA updated to ${inputDataValue}.`);
+    setValidationStatus('idle');
+    setFeedbackTitle(null);
+    setFeedbackMessage(null);
+    setFeedbackExplanation(null);
+  };
+
   const handleReset = () => {
     setNodes(
       task.initialNodes.map((n) => ({
@@ -1548,16 +1830,23 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
         ? true
         : task.initialNodes.some((n) => arePointersEqual(n.address, task.newNodeConfig!.address))
     );
-    setNodeCreationData(task.newNodeConfig?.data ?? 5);
+    setNodeCreationData(0);
     setIsJustCreated(false);
     setExploredFields({ prev: false, data: false, next: false });
     setActiveConceptField(null);
     setVisitedSequence([]);
+    setHistory([]);
     setAttemptCount(0);
-    setNodeBuilderSlots({ prev: null, data: null, next: null });
+    setNodeBuilderSlots({
+      prev: null,
+      data: task.taskType === 'create_node' ? '0' : null,
+      next: null,
+    });
     setSelectedBuilderChip(null);
-    setTraversalSlots([null, null, null, null]);
+    setTraversalSlots(new Array(task.initialNodes.length).fill(null));
     setSelectedTraversalVal(null);
+    setEditingData(null);
+    setDataError(null);
     setEditingPointer(null);
     setInputAddress('');
     setPointerError(null);
@@ -1577,12 +1866,143 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     });
   };
 
+  // Contextual hint generator for Creating a Node task responding to student's current state
+  const getContextualHintForCreateNode = (
+    slots: { prev: string | null; data: string | null; next: string | null },
+    targetData: number
+  ): string => {
+    const { prev, data, next } = slots;
+
+    // Condition 1: DATA is still 0 while the task requires another value
+    if (data === null || data === '' || data === undefined || Number(data) === 0) {
+      return 'Set the DATA value of the new node according to the question.';
+    }
+
+    // Condition 2: DATA is incorrect
+    const dataNum = Number(data);
+    if (isNaN(dataNum) || dataNum !== targetData) {
+      return 'Check the DATA value required by the question and edit the NEW node.';
+    }
+
+    // Condition 3: DATA is correct but PREV/NEXT are incomplete
+    const isPrevCorrect = isNullPointer(prev);
+    const isNextCorrect = isNullPointer(next);
+    if (!isPrevCorrect || !isNextCorrect) {
+      return 'Good. Now complete the remaining pointer fields.';
+    }
+
+    // Condition 4: All required fields are correct
+    return 'Node construction completed successfully.';
+  };
+
+  // Target DATA value for creating a node task
+  const targetDataVal = task.newNodeConfig?.data ?? 5;
+  const builderChips = [
+    { id: 'chip-null-1', val: 'NULL', label: 'NULL' },
+    { id: 'chip-val-target', val: String(targetDataVal), label: String(targetDataVal) },
+    { id: 'chip-val-0', val: '0', label: '0' },
+    { id: 'chip-val-50', val: '50', label: '50' },
+    { id: 'chip-null-2', val: 'NULL', label: 'NULL' },
+  ];
+
+  // Assign value to a slot in Creating a Node task
+  const handleAssignSlot = (slot: 'prev' | 'data' | 'next', val: string) => {
+    soundManager.playClick();
+    pushHistorySnapshot();
+    setNodeBuilderSlots((prev) => {
+      const nextSlots = { ...prev, [slot]: val };
+      setNodes((prevNodes) =>
+        prevNodes.map((n, idx) =>
+          idx === 0
+            ? {
+                ...n,
+                prev: nextSlots.prev ?? 'NULL',
+                data: nextSlots.data !== null ? (isNaN(Number(nextSlots.data)) ? 0 : Number(nextSlots.data)) : 0,
+                next: nextSlots.next ?? 'NULL',
+              }
+            : n
+        )
+      );
+      return nextSlots;
+    });
+    setSelectedBuilderChip(null);
+    setValidationStatus('idle');
+    setFeedbackTitle(null);
+    setFeedbackMessage(null);
+    setFeedbackExplanation(null);
+  };
+
+  // Clear single slot in Creating a Node task
+  const handleClearSlot = (slot: 'prev' | 'data' | 'next') => {
+    soundManager.playClick();
+    pushHistorySnapshot();
+    setNodeBuilderSlots((prev) => {
+      const nextSlots = { ...prev, [slot]: null };
+      setNodes((prevNodes) =>
+        prevNodes.map((n, idx) =>
+          idx === 0
+            ? {
+                ...n,
+                prev: nextSlots.prev ?? 'NULL',
+                data: nextSlots.data !== null ? (isNaN(Number(nextSlots.data)) ? 0 : Number(nextSlots.data)) : 0,
+                next: nextSlots.next ?? 'NULL',
+              }
+            : n
+        )
+      );
+      return nextSlots;
+    });
+    setValidationStatus('idle');
+    setFeedbackTitle(null);
+    setFeedbackMessage(null);
+    setFeedbackExplanation(null);
+  };
+
+  // Clear all slots in Creating a Node task
+  const handleClearAllSlots = () => {
+    soundManager.playClick();
+    pushHistorySnapshot();
+    setNodeBuilderSlots({ prev: null, data: null, next: null });
+    setSelectedBuilderChip(null);
+    setNodes((prevNodes) =>
+      prevNodes.map((n, idx) =>
+        idx === 0
+          ? {
+              ...n,
+              prev: 'NULL',
+              data: 0,
+              next: 'NULL',
+            }
+          : n
+      )
+    );
+    setValidationStatus('idle');
+    setFeedbackTitle(null);
+    setFeedbackMessage(null);
+    setFeedbackExplanation(null);
+  };
+
+  // Slot click handler: assigns selected chip, opens edit modal for data, or clears slot if already filled
+  const handleSlotClick = (slot: 'prev' | 'data' | 'next') => {
+    if (selectedBuilderChip) {
+      handleAssignSlot(slot, selectedBuilderChip.val);
+    } else if (slot === 'data') {
+      const currentVal =
+        nodeBuilderSlots.data !== null && !isNaN(Number(nodeBuilderSlots.data))
+          ? Number(nodeBuilderSlots.data)
+          : 0;
+      handleOpenEditData(nodes[0]?.address || '0x1000', currentVal);
+    } else if (nodeBuilderSlots[slot] !== null) {
+      handleClearSlot(slot);
+    }
+  };
+
   // Helper to allocate new node in memory with PREV = NULL, NEXT = NULL (not automatically inserted into DLL chain)
   const instantiateNewNode = (customData?: number) => {
     const address = task.newNodeConfig
       ? normalizeAddress(task.newNodeConfig.address)
       : getGeneratedAddress(nodes, task);
-    const dataVal = customData !== undefined ? customData : nodeCreationData;
+    const dataVal = customData !== undefined ? customData : (nodeCreationData ?? 0);
     const newNode: DLLNodeState = {
       address,
       data: dataVal,
@@ -1602,6 +2022,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   // Confirm creation from the Create New Node panel
   const handleConfirmCreateNode = () => {
     soundManager.playClick();
+    pushHistorySnapshot();
     const createdAddress = instantiateNewNode(nodeCreationData);
     setIsCreateNodeOpen(false);
     setIsJustCreated(true);
@@ -1620,6 +2041,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   // Student designates HEAD
   const handleSelectNodeForHead = (address: string) => {
     soundManager.playClick();
+    pushHistorySnapshot();
     const normalized = normalizeAddress(address);
     setHeadAddress(normalized);
     setSelectionMode(null);
@@ -1635,6 +2057,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   // Student designates TAIL
   const handleSelectNodeForTail = (address: string) => {
     soundManager.playClick();
+    pushHistorySnapshot();
     const normalized = normalizeAddress(address);
     setTailAddress(normalized);
     setSelectionMode(null);
@@ -1649,6 +2072,22 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
 
   // Student clicks node to delete (opens confirmation modal)
   const handleSelectNodeForDelete = (node: DLLNodeState) => {
+    // If the task has a specific targetDeleteAddress and this node does not match:
+    if (task.taskType === 'delete' && task.targetDeleteAddress && !arePointersEqual(node.address, task.targetDeleteAddress)) {
+      soundManager.playError();
+      setSelectionMode(null);
+      setValidationStatus('error');
+      setFeedbackTitle('Cannot delete this node');
+      setFeedbackMessage('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setFeedbackExplanation('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setStatusNotice({
+        type: 'error',
+        title: 'Cannot delete this node',
+        message: 'This node cannot be deleted for the current task. Delete the node requested in the question.',
+      });
+      return;
+    }
+
     soundManager.playClick();
     setNodePendingDelete(node);
   };
@@ -1657,7 +2096,26 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   const handleConfirmDeleteNode = () => {
     if (!nodePendingDelete) return;
     const targetAddress = normalizeAddress(nodePendingDelete.address);
+
+    // If task has targetDeleteAddress and it doesn't match:
+    if (task.taskType === 'delete' && task.targetDeleteAddress && !arePointersEqual(targetAddress, task.targetDeleteAddress)) {
+      soundManager.playError();
+      setNodePendingDelete(null);
+      setSelectionMode(null);
+      setValidationStatus('error');
+      setFeedbackTitle('Cannot delete this node');
+      setFeedbackMessage('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setFeedbackExplanation('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setStatusNotice({
+        type: 'error',
+        title: 'Cannot delete this node',
+        message: 'This node cannot be deleted for the current task. Delete the node requested in the question.',
+      });
+      return;
+    }
+
     soundManager.playClick();
+    pushHistorySnapshot();
 
     setNodes((prevNodes) =>
       prevNodes.map((n) =>
@@ -1769,6 +2227,9 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
         );
         // Highlight the affected pointer briefly
         setHighlightedPointer({ nodeAddress: normalizeAddress(nodeAddress), field });
+        if (task.taskType === 'create_node') {
+          setNodeBuilderSlots((prev) => ({ ...prev, [field]: normalizedTarget }));
+        }
       }
     } else if (stepObj.action.type === 'delete') {
       const { nodeAddress } = stepObj.action;
@@ -1793,26 +2254,44 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
         setActiveConceptField(conceptField);
         setExploredFields((prev) => ({ ...prev, [conceptField]: true }));
         if (task.taskType === 'create_node') {
+          const targetData = task.newNodeConfig?.data ?? 5;
           if (conceptField === 'prev') {
             setNodeBuilderSlots((p) => ({ ...p, prev: 'NULL' }));
           } else if (conceptField === 'data') {
-            setNodeBuilderSlots((p) => ({ ...p, data: '25' }));
+            setNodeBuilderSlots((p) => ({ ...p, data: String(targetData) }));
           } else if (conceptField === 'next') {
             setNodeBuilderSlots((p) => ({ ...p, next: 'NULL' }));
           }
         }
       }
-    } else if (stepObj.action.type === 'traverse') {
-      const { traverseData } = stepObj.action;
-      if (traverseData !== undefined) {
-        setVisitedSequence((prev) =>
-          prev.includes(traverseData) ? prev : [...prev, traverseData]
+    } else if (stepObj.action.type === 'data') {
+      const { nodeAddress, targetData } = stepObj.action;
+      if (targetData !== undefined) {
+        setNodes((prevNodes) =>
+          prevNodes.map((n) =>
+            nodeAddress ? (arePointersEqual(n.address, nodeAddress) ? { ...n, data: targetData } : n) : { ...n, data: targetData }
+          )
         );
+        if (task.taskType === 'create_node') {
+          setNodeBuilderSlots((prev) => ({ ...prev, data: String(targetData) }));
+        }
+      }
+    } else if (stepObj.action.type === 'traverse') {
+      const { nodeAddress, traverseData } = stepObj.action;
+      let targetAddr: string | null = null;
+      if (nodeAddress) {
+        targetAddr = normalizeAddress(nodeAddress);
+      } else if (traverseData !== undefined) {
+        const found = nodes.find((n) => !n.isDeleted && n.data === traverseData);
+        if (found) targetAddr = found.address;
+        else targetAddr = String(traverseData);
+      }
+      if (targetAddr) {
         setTraversalSlots((prev) => {
           const nextSlots = [...prev];
           const emptyIdx = nextSlots.findIndex((s) => s === null);
           if (emptyIdx !== -1) {
-            nextSlots[emptyIdx] = traverseData;
+            nextSlots[emptyIdx] = targetAddr;
           }
           return nextSlots;
         });
@@ -1881,6 +2360,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     }
 
     soundManager.playClick();
+    pushHistorySnapshot();
 
     // Update actual internal node state; preserve all other nodes and relationships
     setNodes((prevNodes) =>
@@ -1908,9 +2388,24 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   const handleDeleteNode = (address: string) => {
     soundManager.playClick();
     const target = nodes.find((n) => arePointersEqual(n.address, address));
-    if (target) {
-      setNodePendingDelete(target);
+    if (!target) return;
+
+    if (task.taskType === 'delete' && task.targetDeleteAddress && !arePointersEqual(address, task.targetDeleteAddress)) {
+      soundManager.playError();
+      setSelectionMode(null);
+      setValidationStatus('error');
+      setFeedbackTitle('Cannot delete this node');
+      setFeedbackMessage('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setFeedbackExplanation('This node cannot be deleted for the current task. Delete the node requested in the question.');
+      setStatusNotice({
+        type: 'error',
+        title: 'Cannot delete this node',
+        message: 'This node cannot be deleted for the current task. Delete the node requested in the question.',
+      });
+      return;
     }
+
+    setNodePendingDelete(target);
   };
 
   // Concept task field click (Level 1 Task 1)
@@ -1931,10 +2426,8 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
 
   const getWrongAnswerHint = (t: DLLTask, attempt: number): string => {
     if (t.taskType === 'create_node') {
-      if (attempt <= 1) {
-        return 'Check what DATA value is requested, and what PREV and NEXT represent when a new node is unlinked.';
-      }
-      return 'Create a new DLL node with DATA = 5. When first created, neither pointer connects anywhere, so both PREV and NEXT must be NULL.';
+      const targetData = t.newNodeConfig?.data ?? 5;
+      return getContextualHintForCreateNode(nodeBuilderSlots, targetData);
     }
 
     if (t.taskType === 'build') {
@@ -1983,16 +2476,6 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
       setFeedbackTitle('Missing Node');
       setFeedbackMessage('The DLL is not correct yet. Please create and connect the new node.');
       setFeedbackExplanation('You need to allocate the new node first using CREATE NODE, then update pointers to integrate it.');
-      soundManager.playCollision();
-      return;
-    }
-
-    if (task.taskType === 'create_node' && nodes.filter((n) => !n.isDeleted).length === 0) {
-      setAttemptCount((prev) => prev + 1);
-      setValidationStatus('error');
-      setFeedbackTitle('No Node Created');
-      setFeedbackMessage('You have not created the node yet.');
-      setFeedbackExplanation('Click CREATE NODE in the toolbar above to initialize your new node with DATA = 5.');
       soundManager.playCollision();
       return;
     }
@@ -2119,11 +2602,29 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
           </div>
         </div>
 
-        {/* Data Value */}
-        <div className="py-2.5 text-center">
-          <span className="text-base sm:text-lg font-mono font-extrabold text-slate-900 dark:text-white">
-            {node.data}
-          </span>
+        {/* Data Value - Editable ONLY for new nodes (isNewNode or isUnconnected) */}
+        <div className="py-2.5 text-center flex items-center justify-center">
+          {node.isNewNode || isUnconnected ? (
+            <button
+              type="button"
+              disabled={selectionMode !== null}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenEditData(node.address, node.data);
+              }}
+              className="group flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-dashed border-amber-300 dark:border-amber-700 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-slate-900 dark:text-white transition-all cursor-pointer shadow-2xs"
+              title="Click to edit DATA value of this new node"
+            >
+              <span className="text-base sm:text-lg font-mono font-extrabold select-none">
+                {node.data}
+              </span>
+              <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 opacity-70 group-hover:opacity-100" />
+            </button>
+          ) : (
+            <span className="text-base sm:text-lg font-mono font-extrabold text-slate-900 dark:text-white select-none">
+              {node.data}
+            </span>
+          )}
         </div>
 
         {/* Bottom: PREV and NEXT Pointer Buttons (Level 5 Controls) */}
@@ -2421,24 +2922,63 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
           )}
 
           {/* Status Notice (e.g. Node created, or action feedback) */}
-          {statusNotice && !selectionMode && (
-            <div
-              id="status-notice-banner"
-              className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs text-slate-700 dark:text-slate-300 animate-fade-in font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>{statusNotice}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStatusNotice(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+          {statusNotice && !selectionMode && (() => {
+            const isError = typeof statusNotice === 'object' && statusNotice?.type === 'error';
+            const title = typeof statusNotice === 'object' ? statusNotice.title : undefined;
+            const msg = typeof statusNotice === 'object' ? statusNotice.message : statusNotice;
+
+            if (isError) {
+              return (
+                <div
+                  id="status-notice-banner"
+                  role="alert"
+                  className="w-full p-3.5 sm:p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-300 dark:border-rose-800/80 flex items-start justify-between gap-3 shadow-xs animate-fade-in"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 border border-rose-300 dark:border-rose-700/80 flex items-center justify-center shrink-0 mt-0.5 text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col gap-0.5 text-left">
+                      <span className="text-xs sm:text-sm font-bold text-rose-950 dark:text-rose-100 tracking-tight">
+                        {title || 'Cannot delete this node'}
+                      </span>
+                      <span className="text-xs sm:text-sm text-rose-800 dark:text-rose-200 leading-relaxed font-normal">
+                        {msg}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStatusNotice(null)}
+                    className="text-rose-400 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-200 cursor-pointer p-1 rounded-md hover:bg-rose-100/60 dark:hover:bg-rose-900/50 shrink-0 transition-colors"
+                    aria-label="Dismiss alert"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                id="status-notice-banner"
+                className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 text-xs text-slate-700 dark:text-slate-300 animate-fade-in font-medium"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>{msg}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatusNotice(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                  aria-label="Dismiss notice"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })()}
 
           {/* =========================================================================
               PART 2: DLL MEMORY CANVAS
@@ -2457,16 +2997,18 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                   DOUBLY LINKED LIST MEMORY CANVAS
                 </h3>
               </div>
-              <div className="flex items-center gap-2 text-[11px] font-mono">
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#2563EB] dark:text-blue-400 font-bold shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
-                  HEAD: {headAddress ?? 'NULL'}
-                </span>
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-purple-700 dark:text-purple-400 font-bold shadow-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
-                  TAIL: {tailAddress ?? 'NULL'}
-                </span>
-              </div>
+              {!isCreateNodeTask && !isTraverseTask && !isConceptTask && (
+                <div className="flex items-center gap-2 text-[11px] font-mono">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#2563EB] dark:text-blue-400 font-bold shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+                    HEAD: {headAddress ?? 'NULL'}
+                  </span>
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-purple-700 dark:text-purple-400 font-bold shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+                    TAIL: {tailAddress ?? 'NULL'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Scrollable Canvas Body: Ensures horizontal scrolling on mobile and smaller screens */}
@@ -2597,68 +3139,237 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
             </div>
           </div>
         ) : task.taskType === 'create_node' ? (
-          /* 2. LEVEL 1 TASK 1: Standalone Node Construction */
-          <div className="w-full max-w-xl flex flex-col items-center gap-6 py-6">
-            <div className="text-xs sm:text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
-              Construct a standalone Doubly Linked List node. Set <code className="font-mono font-bold bg-blue-100 dark:bg-blue-900/60 px-1 py-0.5 rounded text-[#2563EB] dark:text-blue-300">DATA = 5</code>, with both <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">PREV</code> and <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">NEXT</code> set to <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">NULL</code>.
+          /* 2. LEVEL 1 TASK 1: Standalone 3-Slot Node Construction */
+          <div className="w-full max-w-xl flex flex-col items-center gap-6 py-4">
+            {/* Top: Question prompt */}
+            <div className="text-xs sm:text-sm text-center text-slate-600 dark:text-slate-400 font-medium px-4">
+              Construct a standalone Doubly Linked List node. Set{' '}
+              <code className="font-mono font-bold bg-blue-100 dark:bg-blue-900/60 px-1.5 py-0.5 rounded text-[#2563EB] dark:text-blue-300">
+                DATA = 5
+              </code>
+              , with both{' '}
+              <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200">
+                PREV
+              </code>{' '}
+              and{' '}
+              <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200">
+                NEXT
+              </code>{' '}
+              set to{' '}
+              <code className="font-mono font-bold bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200">
+                NULL
+              </code>
+              .
             </div>
 
-            {/* Standalone Node in Heap Memory with NULL on both sides */}
-            <div className="w-full flex items-center justify-center gap-3 sm:gap-4 py-4 overflow-x-auto">
-              {/* Left NULL */}
-              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-400 dark:text-slate-500 shrink-0">
-                <span className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-                  NULL
-                </span>
-                <span className="text-slate-400">←</span>
-              </div>
+            {/* Middle: Standalone NEW node with PREV, DATA and NEXT slots */}
+            <div className="w-full flex flex-col items-center gap-3">
+              <div className="relative flex flex-col rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-[#111827] shadow-sm w-full max-w-md overflow-hidden">
+                {/* Node Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-medium">Node</span>
+                    <span className="font-extrabold text-[#2563EB] dark:text-blue-400">
+                      {activeNodes[0]?.address || '0x1000'}
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 text-[10px] font-mono font-bold tracking-wider uppercase">
+                    NEW
+                  </span>
+                </div>
 
-              {/* Node Card */}
-              {activeNodes.length > 0 && renderNodeCard(activeNodes[0], false)}
-
-              {/* Right NULL */}
-              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-400 dark:text-slate-500 shrink-0">
-                <span className="text-slate-400">→</span>
-                <span className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-                  NULL
-                </span>
-              </div>
-            </div>
-
-            {/* Standalone Node Direct DATA Input Field */}
-            <div className="w-full max-w-sm bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col items-center gap-3">
-              <label htmlFor="create-node-data-input" className="text-xs font-mono font-bold uppercase text-slate-600 dark:text-slate-400">
-                Set Node DATA Value
-              </label>
-              <div className="flex items-center gap-2 w-full">
-                <input
-                  id="create-node-data-input"
-                  type="number"
-                  value={activeNodes.length > 0 ? activeNodes[0].data : 0}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    const num = raw === '' ? 0 : Number(raw);
-                    if (activeNodes.length > 0) {
-                      setNodes((prev) =>
-                        prev.map((n) =>
-                          arePointersEqual(n.address, activeNodes[0].address)
-                            ? { ...n, data: num }
-                            : n
-                        )
-                      );
-                      setValidationStatus('idle');
-                      setFeedbackTitle(null);
-                      setFeedbackMessage(null);
-                      setFeedbackExplanation(null);
+                {/* 3 Slots: PREV | DATA | NEXT */}
+                <div className="grid grid-cols-3 divide-x divide-slate-200 dark:divide-slate-800 font-mono">
+                  {/* PREV Slot */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const val = e.dataTransfer.getData('text/plain');
+                      if (val) handleAssignSlot('prev', val);
+                    }}
+                    onClick={() => handleSlotClick('prev')}
+                    className="flex flex-col items-center p-3 gap-2 cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group select-none"
+                    title={
+                      nodeBuilderSlots.prev !== null
+                        ? 'Click to clear this slot'
+                        : selectedBuilderChip
+                        ? `Click to place ${selectedBuilderChip.val}`
+                        : 'Drag or click a value to place here'
                     }
-                  }}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-extrabold text-lg text-center focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-                  placeholder="0"
-                />
+                  >
+                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                      PREV
+                    </span>
+                    <div
+                      className={`w-full py-2 px-1 text-center rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[48px] ${
+                        nodeBuilderSlots.prev === null
+                          ? 'border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 group-hover:border-blue-400'
+                          : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-extrabold shadow-xs'
+                      }`}
+                    >
+                      <span className="text-xs sm:text-sm font-bold">
+                        {nodeBuilderSlots.prev === null ? 'EMPTY' : nodeBuilderSlots.prev}
+                      </span>
+                      {nodeBuilderSlots.prev !== null && (
+                        <span className="text-[8px] text-slate-400 dark:text-slate-500 font-normal">
+                          click to clear
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* DATA Slot */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const val = e.dataTransfer.getData('text/plain');
+                      if (val) handleAssignSlot('data', val);
+                    }}
+                    onClick={() => handleSlotClick('data')}
+                    className="flex flex-col items-center p-3 gap-2 cursor-pointer hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors group select-none"
+                    title={
+                      selectedBuilderChip
+                        ? `Click to place ${selectedBuilderChip.val}`
+                        : 'Click to edit DATA or drag a value here'
+                    }
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold uppercase text-[#2563EB] dark:text-blue-400">
+                        DATA
+                      </span>
+                      <span className="text-[9px] text-blue-500/80 dark:text-blue-400/80 font-normal">
+                        (Editable)
+                      </span>
+                    </div>
+                    <div
+                      className={`w-full py-2 px-1 text-center rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[48px] ${
+                        nodeBuilderSlots.data === null
+                          ? 'border-dashed border-blue-300 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 text-blue-400/80 group-hover:border-[#2563EB]'
+                          : 'border-blue-300 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-300 font-extrabold shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-base sm:text-lg font-bold">
+                          {nodeBuilderSlots.data === null ? '0' : nodeBuilderSlots.data}
+                        </span>
+                        <Edit3 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 opacity-70 group-hover:opacity-100" />
+                      </div>
+                      <span className="text-[8px] text-blue-400 dark:text-blue-500 font-normal">
+                        click to edit
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* NEXT Slot */}
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const val = e.dataTransfer.getData('text/plain');
+                      if (val) handleAssignSlot('next', val);
+                    }}
+                    onClick={() => handleSlotClick('next')}
+                    className="flex flex-col items-center p-3 gap-2 cursor-pointer hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors group select-none"
+                    title={
+                      nodeBuilderSlots.next !== null
+                        ? 'Click to clear this slot'
+                        : selectedBuilderChip
+                        ? `Click to place ${selectedBuilderChip.val}`
+                        : 'Drag or click a value to place here'
+                    }
+                  >
+                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                      NEXT
+                    </span>
+                    <div
+                      className={`w-full py-2 px-1 text-center rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[48px] ${
+                        nodeBuilderSlots.next === null
+                          ? 'border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 text-slate-400 group-hover:border-blue-400'
+                          : 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-extrabold shadow-xs'
+                      }`}
+                    >
+                      <span className="text-xs sm:text-sm font-bold">
+                        {nodeBuilderSlots.next === null ? 'EMPTY' : nodeBuilderSlots.next}
+                      </span>
+                      {nodeBuilderSlots.next !== null && (
+                        <span className="text-[8px] text-slate-400 dark:text-slate-500 font-normal">
+                          click to clear
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
-                Enter DATA = 5 to complete construction. Click the PREV or NEXT buttons on the card if you wish to inspect or modify pointers.
-              </p>
+
+              {/* Clear all slots button */}
+              {(nodeBuilderSlots.prev !== null || nodeBuilderSlots.data !== null || nodeBuilderSlots.next !== null) && (
+                <button
+                  type="button"
+                  onClick={handleClearAllSlots}
+                  className="text-xs text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 underline underline-offset-2 transition-colors cursor-pointer"
+                >
+                  Clear all slots
+                </button>
+              )}
+            </div>
+
+            {/* Bottom: Available values that can be dragged or clicked into the slots */}
+            <div className="w-full max-w-md flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[11px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400">
+                  Available Values
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  Drag or click to assign
+                </span>
+              </div>
+
+              {/* Values Chips Pool */}
+              <div className="flex flex-wrap items-center justify-center gap-2.5 w-full pt-1">
+                {builderChips.map((chip) => {
+                  const isSelected = selectedBuilderChip?.id === chip.id;
+                  const isPointer = chip.val === 'NULL';
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', chip.val);
+                      }}
+                      onClick={() => {
+                        soundManager.playClick();
+                        if (isSelected) {
+                          setSelectedBuilderChip(null);
+                        } else {
+                          setSelectedBuilderChip({ id: chip.id, val: chip.val });
+                        }
+                      }}
+                      className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-mono font-extrabold border-2 transition-all cursor-grab active:cursor-grabbing select-none shadow-xs ${
+                        isSelected
+                          ? 'bg-[#2563EB] text-white border-[#2563EB] ring-2 ring-blue-400 scale-105 shadow-sm'
+                          : isPointer
+                          ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+                          : 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 border-blue-300 dark:border-blue-800 text-[#2563EB] dark:text-blue-300'
+                      }`}
+                      title="Drag to a slot or click to select then click a slot"
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : task.taskType === 'traverse' ? (
@@ -2742,6 +3453,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                   type="button"
                   onClick={() => {
                     soundManager.playClick();
+                    pushHistorySnapshot();
                     setTraversalSlots(new Array(activeNodes.length).fill(null));
                     setSelectedTraversalVal(null);
                     setValidationStatus('idle');
@@ -2755,47 +3467,62 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                 </button>
               </div>
 
-              {/* Available Nodes Pool - ONLY nodes that actually exist in the DLL! (No 40 or extra numbers) */}
+              {/* Available Nodes Pool - ONLY nodes that actually exist in the DLL, presented in non-sequential order */}
               <div className="flex flex-col items-center gap-2">
                 <span className="text-[10px] font-mono uppercase font-bold text-slate-400">
                   Available Nodes (Drag or Click)
                 </span>
-                <div className="flex items-center gap-3">
-                  {(activeNodes.length === 3 ? [20, 10, 30] : activeNodes.map((n) => n.data)).map((val) => {
-                    const isPlaced = traversalSlots.includes(val);
-                    const isSelected = selectedTraversalVal === val;
-                    return (
-                      <div
-                        key={val}
-                        draggable={!isPlaced}
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('text/plain', String(val));
-                        }}
-                        onClick={() => {
-                          if (isPlaced) return;
-                          soundManager.playClick();
-                          setSelectedTraversalVal(isSelected ? null : val);
-                        }}
-                        className={`w-12 h-12 rounded-xl font-mono text-base font-extrabold flex items-center justify-center border-2 select-none transition-all ${
-                          isPlaced
-                            ? 'opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
-                            : isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-400 scale-105 shadow-sm cursor-pointer'
-                            : 'bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-[#2563EB] dark:text-blue-300 border-blue-300 dark:border-blue-800 cursor-grab shadow-xs'
-                        }`}
-                      >
-                        {val}
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  {[...activeNodes]
+                    .sort((a, b) => (b.data !== a.data ? b.data - a.data : a.address.localeCompare(b.address)))
+                    .map((node) => {
+                      const isPlaced = traversalSlots.some(
+                        (s) => s !== null && (arePointersEqual(s, node.address) || Number(s) === node.data)
+                      );
+                      const isSelected =
+                        selectedTraversalVal !== null &&
+                        (arePointersEqual(selectedTraversalVal, node.address) ||
+                          Number(selectedTraversalVal) === node.data);
+                      return (
+                        <div
+                          key={node.address}
+                          draggable={!isPlaced}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', node.address);
+                          }}
+                          onClick={() => {
+                            if (isPlaced) return;
+                            soundManager.playClick();
+                            setSelectedTraversalVal(isSelected ? null : node.address);
+                          }}
+                          className={`min-w-[56px] px-3 py-2 rounded-xl font-mono flex flex-col items-center justify-center border-2 select-none transition-all ${
+                            isPlaced
+                              ? 'opacity-30 cursor-not-allowed bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                              : isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-400 scale-105 shadow-sm cursor-pointer'
+                              : 'bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 text-[#2563EB] dark:text-blue-300 border-blue-300 dark:border-blue-800 cursor-grab shadow-xs'
+                          }`}
+                        >
+                          <span className="text-base font-extrabold">{node.data}</span>
+                          <span className="text-[9px] opacity-75">{node.address}</span>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
 
-              {/* Dynamic Ordered Drop Slots: exactly equal to activeNodes.length (3 slots for 3 nodes) */}
+              {/* Dynamic Ordered Drop Slots: exactly equal to activeNodes.length */}
               <div className="flex items-center justify-center gap-2 sm:gap-3 py-2">
                 {activeNodes.map((_, idx) => {
                   const label = idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `${idx + 1}th`;
                   const slotVal = traversalSlots[idx] !== undefined ? traversalSlots[idx] : null;
+                  const placedNode =
+                    slotVal !== null
+                      ? activeNodes.find(
+                          (n) => arePointersEqual(n.address, slotVal) || n.data === Number(slotVal)
+                        )
+                      : null;
+
                   return (
                     <React.Fragment key={idx}>
                       <div
@@ -2803,15 +3530,17 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                         onDrop={(e) => {
                           e.preventDefault();
                           const rawVal = e.dataTransfer.getData('text/plain');
-                          const numVal = parseInt(rawVal, 10);
-                          if (!isNaN(numVal)) {
+                          if (rawVal) {
                             soundManager.playClick();
+                            pushHistorySnapshot();
                             setTraversalSlots((prev) => {
                               const copy = [...prev];
                               while (copy.length < activeNodes.length) copy.push(null);
-                              const existingIdx = copy.indexOf(numVal);
+                              const existingIdx = copy.findIndex(
+                                (s) => s !== null && (arePointersEqual(s, rawVal) || String(s) === rawVal)
+                              );
                               if (existingIdx !== -1) copy[existingIdx] = null;
-                              copy[idx] = numVal;
+                              copy[idx] = rawVal;
                               return copy;
                             });
                             setValidationStatus('idle');
@@ -2823,11 +3552,14 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                         onClick={() => {
                           if (selectedTraversalVal !== null) {
                             soundManager.playClick();
+                            pushHistorySnapshot();
                             const valToSet = selectedTraversalVal;
                             setTraversalSlots((prev) => {
                               const copy = [...prev];
                               while (copy.length < activeNodes.length) copy.push(null);
-                              const existingIdx = copy.indexOf(valToSet);
+                              const existingIdx = copy.findIndex(
+                                (s) => s !== null && (arePointersEqual(s, valToSet) || String(s) === valToSet)
+                              );
                               if (existingIdx !== -1) copy[existingIdx] = null;
                               copy[idx] = valToSet;
                               return copy;
@@ -2839,6 +3571,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                             setFeedbackExplanation(null);
                           } else if (slotVal !== null) {
                             soundManager.playClick();
+                            pushHistorySnapshot();
                             setTraversalSlots((prev) => {
                               const copy = [...prev];
                               copy[idx] = null;
@@ -2851,21 +3584,21 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                           }
                         }}
                         className={`w-20 sm:w-24 h-20 sm:h-22 rounded-xl border-2 flex flex-col items-center justify-center p-2 transition-all cursor-pointer ${
-                          slotVal !== null
+                          placedNode !== null
                             ? 'bg-blue-50 dark:bg-blue-950/60 border-blue-500 shadow-xs'
                             : 'border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30 hover:border-blue-400'
                         }`}
-                        title={slotVal !== null ? 'Click to remove' : 'Drop or click node to place'}
+                        title={placedNode !== null ? 'Click to remove' : 'Drop or click node to place'}
                       >
                         <span className="text-[10px] font-mono text-slate-400 uppercase font-bold mb-1">
                           [ {label} ]
                         </span>
-                        {slotVal !== null ? (
+                        {placedNode !== null ? (
                           <>
                             <span className="text-base sm:text-lg font-mono font-extrabold text-[#2563EB] dark:text-blue-300">
-                              {slotVal}
+                              {placedNode.data}
                             </span>
-                            <span className="text-[8px] font-mono text-slate-400 mt-0.5">remove</span>
+                            <span className="text-[9px] font-mono text-slate-400 mt-0.5">{placedNode.address}</span>
                           </>
                         ) : (
                           <span className="text-[10px] font-mono text-slate-400 italic text-center">
@@ -3000,48 +3733,85 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
           FEEDBACK BANNER (SUCCESS / ERROR / HINT)
           ========================================================================= */}
       {validationStatus === 'success' && (
-        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-medium animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span>{feedbackMessage || 'Correct! The DLL is valid.'}</span>
+        <div
+          id="task-success-banner"
+          role="status"
+          className="p-4 sm:p-5 rounded-2xl bg-emerald-50/95 dark:bg-emerald-950/50 border-2 border-emerald-300 dark:border-emerald-800/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-emerald-950 dark:text-emerald-100 animate-fade-in"
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                  {feedbackTitle || 'Correct!'}
+                </h4>
+                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-200/80 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200">
+                  +{task.xp} XP
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-normal leading-relaxed">
+                {feedbackMessage || 'Correct! The DLL is valid.'}
+              </p>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onBackToTasks}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors shrink-0 cursor-pointer"
-          >
-            Return to Tasks
-          </button>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-emerald-200/60 dark:border-emerald-800/60">
+            <button
+              id="btn-return-to-tasks"
+              type="button"
+              onClick={onBackToTasks}
+              className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100/50 dark:hover:bg-slate-800 text-emerald-800 dark:text-emerald-300 font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              Tasks List
+            </button>
+
+            {onNextTask && (
+              <button
+                id="btn-next-task"
+                type="button"
+                onClick={onNextTask}
+                className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-600 active:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-xs hover:shadow-sm transition-all cursor-pointer"
+              >
+                <span>{isFinalTask ? 'Complete Level' : 'Next Task'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {validationStatus === 'error' && (
+      {(validationStatus === 'error' || validationStatus === 'warning') && (
         <div
-          id="wrong-answer-card"
-          className="w-full p-4 sm:p-5 rounded-2xl bg-rose-50/90 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800/70 flex flex-col gap-3.5 shadow-sm animate-fade-in"
+          id={validationStatus === 'warning' ? 'warning-card' : 'wrong-answer-card'}
+          role="alert"
+          className="w-full p-4 sm:p-5 rounded-2xl border-2 flex flex-col gap-3.5 shadow-sm animate-fade-in bg-rose-50/95 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800/80 text-rose-950 dark:text-rose-100"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/60 border border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 bg-rose-100 dark:bg-rose-900/60 border-rose-300 dark:border-rose-800 text-rose-600 dark:text-rose-400">
                 <AlertCircle className="w-5 h-5" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-left">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100">
-                    {feedbackTitle || 'Wrong Answer'}
+                  <h4 className="text-sm font-bold text-rose-950 dark:text-rose-100">
+                    {feedbackTitle || (validationStatus === 'warning' ? 'Cannot delete this node' : 'Wrong Answer')}
                   </h4>
-                  {attemptCount > 0 && (
+                  {attemptCount > 0 && validationStatus !== 'warning' && (
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-rose-200/80 dark:bg-rose-900/80 text-rose-900 dark:text-rose-200">
                       Attempt #{attemptCount}
                     </span>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-rose-800 dark:text-rose-200 leading-relaxed">
-                  {feedbackMessage || 'The DLL is not correct yet.'}
+                <p className="text-xs sm:text-sm leading-relaxed text-rose-800 dark:text-rose-200 font-normal">
+                  {feedbackMessage ||
+                    (validationStatus === 'warning'
+                      ? 'This node cannot be deleted for the current task. Delete the node requested in the question.'
+                      : 'The DLL is not correct yet.')}
                 </p>
                 {feedbackExplanation && (
-                  <p className="text-xs text-rose-700 dark:text-rose-300/90 leading-relaxed mt-1">
+                  <p className="text-xs leading-relaxed mt-1 text-rose-700 dark:text-rose-300/90 font-normal">
                     {feedbackExplanation}
                   </p>
                 )}
@@ -3050,23 +3820,30 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
 
             <button
               type="button"
-              onClick={() => setValidationStatus('idle')}
-              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-rose-100 dark:hover:bg-slate-800 border border-rose-300 dark:border-rose-800 text-xs font-bold text-rose-800 dark:text-rose-200 shadow-xs transition-colors shrink-0 cursor-pointer"
+              onClick={() => {
+                setValidationStatus('idle');
+                setFeedbackTitle(null);
+                setFeedbackMessage(null);
+                setFeedbackExplanation(null);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold shadow-xs transition-colors shrink-0 cursor-pointer hover:bg-rose-100 dark:hover:bg-slate-800 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200"
             >
               Try Again
             </button>
           </div>
 
-          {/* Progressive Conceptual Hint */}
-          <div className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-            <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-            <div>
-              <strong className="text-slate-900 dark:text-white font-bold block mb-0.5">
-                {attemptCount >= 2 ? 'Deep Conceptual Hint:' : 'Conceptual Hint:'}
-              </strong>
-              {getWrongAnswerHint(task, attemptCount)}
+          {/* Progressive Conceptual / Contextual Hint (Only on error) */}
+          {validationStatus === 'error' && (
+            <div className="p-3.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200 dark:border-rose-900/50 flex items-start gap-2.5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+              <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-slate-900 dark:text-white font-bold block mb-0.5">
+                  {isCreateNodeTask ? 'Hint:' : attemptCount >= 2 ? 'Deep Conceptual Hint:' : 'Conceptual Hint:'}
+                </strong>
+                {getWrongAnswerHint(task, attemptCount)}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -3074,8 +3851,12 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
         <div className="p-4 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 flex items-start gap-2.5 text-blue-900 dark:text-blue-200 text-xs sm:text-sm leading-relaxed animate-fade-in">
           <Lightbulb className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <strong className="font-bold block mb-0.5">Conceptual Hint:</strong>
-            {task.hint}
+            <strong className="font-bold block mb-0.5">
+              {isCreateNodeTask ? 'Contextual Hint:' : 'Conceptual Hint:'}
+            </strong>
+            {isCreateNodeTask
+              ? getContextualHintForCreateNode(nodeBuilderSlots, task.newNodeConfig?.data ?? 5)
+              : task.hint}
           </div>
         </div>
       )}
@@ -3085,15 +3866,20 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
           ========================================================================= */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Secondary Reset Button */}
+          {/* Undo Button */}
           <button
             type="button"
-            onClick={handleReset}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#111827] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs transition-colors cursor-pointer"
-            title="Reset to initial state"
+            onClick={handleUndo}
+            disabled={history.length === 0}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all shadow-xs ${
+              history.length === 0
+                ? 'opacity-40 cursor-not-allowed bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400'
+                : 'bg-white dark:bg-[#111827] hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer'
+            }`}
+            title="Undo last action"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>RESET</span>
+            <Undo2 className="w-3.5 h-3.5" />
+            <span>UNDO</span>
           </button>
 
           {/* Optional Hint Button */}
@@ -3253,7 +4039,7 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                     Guided Solve Complete
                   </span>
                   <span className="text-[12px] leading-relaxed text-emerald-800 dark:text-emerald-300">
-                    All operations have been demonstrated! The Doubly Linked List is now in the solved state. Review the completed steps above, or click Reset to practice independently.
+                    All operations have been demonstrated! The Doubly Linked List is now in the solved state. Review the completed steps above to practice independently.
                   </span>
                 </div>
               </div>
@@ -3407,6 +4193,76 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
               <button
                 type="button"
                 onClick={handleUpdatePointer}
+                className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                UPDATE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          EDIT NODE DATA MODAL
+          ========================================================================= */}
+      {editingData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-sm bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Edit Node DATA
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingData(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Update the integer DATA value for node <code className="font-mono font-bold text-[#2563EB] dark:text-blue-400">{editingData.nodeAddress}</code>:
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-slate-700 dark:text-slate-300 block">
+                Enter numeric DATA:
+              </label>
+              <input
+                type="number"
+                value={inputDataValue}
+                onChange={(e) => {
+                  setInputDataValue(Number(e.target.value));
+                  setDataError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleUpdateData();
+                }}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              {dataError && (
+                <p className="text-[11px] text-rose-500 dark:text-rose-400 font-medium">
+                  {dataError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingData(null)}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateData}
                 className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-600 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
               >
                 UPDATE

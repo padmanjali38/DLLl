@@ -222,7 +222,7 @@ export const MyProgressView: React.FC<MyProgressViewProps> = ({ onNavigateToTab 
               <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase mt-0.5">Activities</div>
             </div>
             <div>
-              <div className="text-2xl font-extrabold text-[#2563EB] dark:text-cyan-400 font-mono">{progressState.levelsCompleted.length} / 5</div>
+              <div className="text-2xl font-extrabold text-[#2563EB] dark:text-cyan-400 font-mono">{stats.game.completed}/3</div>
               <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase mt-0.5">Levels Won</div>
             </div>
           </div>

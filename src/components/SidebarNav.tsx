@@ -33,24 +33,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 }) => {
   const [stats, setStats] = React.useState(() => progressManager.getStats());
   const [isProgressHovered, setIsProgressHovered] = useState(false);
-  const [dllTasksCount, setDllTasksCount] = useState(() => {
-    try {
-      const saved = localStorage.getItem('dsa_game_completed_tasks_v1');
-      return saved ? JSON.parse(saved).length : 0;
-    } catch {
-      return 0;
-    }
-  });
 
   React.useEffect(() => {
     const unsub = progressManager.subscribe(() => {
       setStats(progressManager.getStats());
-      try {
-        const saved = localStorage.getItem('dsa_game_completed_tasks_v1');
-        setDllTasksCount(saved ? JSON.parse(saved).length : 0);
-      } catch {
-        // ignore
-      }
     });
     return unsub;
   }, []);
@@ -81,7 +67,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       id: 'GAME' as MainViewTab,
       label: 'Game',
       icon: Gamepad2,
-      badge: `${dllTasksCount} / 20 Tasks`,
+      badge: `${stats.game.completed}/3`,
       badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/20',
     },
     {
@@ -101,6 +87,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   ];
 
   const handleSelect = (tab: MainViewTab) => {
+    if (tab === activeTab) {
+      if (onCloseMobile) {
+        onCloseMobile();
+      }
+      return;
+    }
     soundManager.playNav();
     onChangeTab(tab);
     if (onCloseMobile) {

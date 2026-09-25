@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient (Subtle Dark Navy matching Picture 1) -->
+    <radialGradient id="spaceBg" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#111B33"/>
+      <stop offset="70%" stop-color="#0B1120"/>
+      <stop offset="100%" stop-color="#070B14"/>
+    </radialGradient>
+
+    <!-- Rocket White Body Gradient (Smooth 3D cylinder/capsule shading) -->
+    <linearGradient id="rocketBodyGrad" x1="0%" y1="20%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#F8FAFC"/>
+      <stop offset="80%" stop-color="#DDE5EE"/>
+      <stop offset="100%" stop-color="#B0C0D4"/>
+    </linearGradient>
+
+    <!-- Blue Nose Cone Gradient -->
+    <linearGradient id="noseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="35%" stop-color="#2563EB"/>
+      <stop offset="85%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+
+    <!-- Blue Fins Gradients -->
+    <linearGradient id="finLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="60%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+
+    <linearGradient id="finRightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="70%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#172554"/>
+    </linearGradient>
+
+    <!-- Center Dorsal Fin -->
+    <linearGradient id="finCenterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="50%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#1E3A8A"/>
+    </linearGradient>
+
+    <!-- Red Ring Collar -->
+    <linearGradient id="redBandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F87171"/>
+      <stop offset="40%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </linearGradient>
+
+    <!-- Thruster Flame Gradients -->
+    <linearGradient id="flameOuter" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="30%" stop-color="#F97316"/>
+      <stop offset="75%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+
+    <linearGradient id="flameInner" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#FEF08A"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+
+    <!-- Window Porthole Glass Gradient -->
+    <radialGradient id="glassGrad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="40%" stop-color="#0284C7"/>
+      <stop offset="85%" stop-color="#0369A1"/>
+      <stop offset="100%" stop-color="#072344"/>
+    </radialGradient>
+
+    <!-- Cloud Gradients -->
+    <radialGradient id="cloudLight" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="65%" stop-color="#F1F5F9"/>
+      <stop offset="90%" stop-color="#D7E0EB"/>
+      <stop offset="100%" stop-color="#B8C7D9"/>
+    </radialGradient>
+
+    <radialGradient id="cloudShade" cx="45%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#E2E8F0"/>
+      <stop offset="70%" stop-color="#CBD5E1"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </radialGradient>
+
+    <!-- Drop Shadow -->
+    <filter id="rocketShadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="-2" dy="4" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Optional Background (Rounded or transparent canvas) -->
+  <rect width="160" height="160" rx="20" fill="url(#spaceBg)"/>
+
+  <!-- ================= ROCKET ASSEMBLY (Group rotated ~40° to upper right) ================= -->
+  <g transform="translate(86, 78) rotate(42) translate(-80, -78)" filter="url(#rocketShadow)">
+    
+    <!-- THRUSTER FLAME (Extending downward from the rocket base) -->
+    <g>
+      <!-- Outer Flame -->
+      <path d="M 72 108 C 64 128, 70 144, 80 156 C 90 144, 96 128, 88 108 Z" fill="url(#flameOuter)"/>
+      <!-- Inner Core Flame -->
+      <path d="M 75 108 C 72 122, 75 136, 80 144 C 85 136, 88 122, 85 108 Z" fill="url(#flameInner)"/>
+      <!-- White Core -->
+      <path d="M 77 108 C 76 116, 78 126, 80 132 C 82 126, 84 116, 83 108 Z" fill="#FFFFFF" opacity="0.95"/>
+      
+      <!-- Flame Spark Streaks -->
+      <line x1="74" y1="130" x2="70" y2="148" stroke="#FFAA00" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+      <line x1="86" y1="130" x2="90" y2="146" stroke="#FFAA00" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+      <circle cx="78" cy="158" r="1.4" fill="#FBBF24"/>
+      <circle cx="83" cy="162" r="1.2" fill="#F97316"/>
+    </g>
+
+    <!-- LEFT FIN (Swept back wing) -->
+    <path d="M 64 80 C 44 86, 38 102, 48 112 C 58 107, 65 96, 68 88 Z" fill="url(#finLeftGrad)"/>
+    <!-- Left Fin Edge Highlight -->
+    <path d="M 64 81 C 48 87, 43 100, 49 110 C 48 106, 52 92, 65 85 Z" fill="#93C5FD" opacity="0.6"/>
+
+    <!-- RIGHT FIN (Swept back wing) -->
+    <path d="M 96 80 C 116 86, 122 102, 112 112 C 102 107, 95 96, 92 88 Z" fill="url(#finRightGrad)"/>
+    <!-- Right Fin Shade -->
+    <path d="M 96 81 C 110 87, 115 100, 110 110 C 108 106, 105 92, 94 85 Z" fill="#3B82F6" opacity="0.4"/>
+
+    <!-- RED ENGINE BAND / COLLAR -->
+    <rect x="67" y="102" width="26" height="8" rx="3" fill="url(#redBandGrad)"/>
+    <rect x="69" y="103" width="22" height="2" rx="1" fill="#FCA5A5" opacity="0.7"/>
+
+    <!-- MAIN FUSELAGE (Smooth white 3D rocket capsule) -->
+    <path d="M 67 103 C 64 78, 68 52, 80 28 C 92 52, 96 78, 93 103 Z" fill="url(#rocketBodyGrad)"/>
+    
+    <!-- Fuselage Left Specular Highlight Curve -->
+    <path d="M 69 98 C 67 76, 70 54, 80 32 C 77 46, 74 72, 75 98 Z" fill="#FFFFFF" opacity="0.7"/>
+
+    <!-- BLUE NOSE CONE -->
+    <path d="M 71 46 C 75 34, 78 28, 80 24 C 82 28, 85 34, 89 46 C 84 48, 76 48, 71 46 Z" fill="url(#noseGrad)"/>
+    <!-- Nose Cone Specular Gloss -->
+    <path d="M 73 44 C 76 34, 78 28, 80 25 C 79 31, 77 38, 76 44 Z" fill="#BFDBFE" opacity="0.85"/>
+
+    <!-- CENTER DORSAL FIN (Facing viewer) -->
+    <path d="M 78 72 C 75 84, 75 98, 80 106 C 85 98, 85 84, 82 72 Z" fill="url(#finCenterGrad)"/>
+    <!-- Center Fin Highlight Ridge -->
+    <path d="M 78 73 C 79 83, 79 96, 80 104 C 81 96, 81 83, 80 73 Z" fill="#93C5FD" opacity="0.85"/>
+
+    <!-- PORTHOLE COCKPIT WINDOW -->
+    <!-- Outer Dark Rim / Frame -->
+    <circle cx="80" cy="62" r="11" fill="#0F172A"/>
+    <!-- Inner Glass -->
+    <circle cx="80" cy="62" r="9.2" fill="url(#glassGrad)"/>
+    <!-- Glass Specular Reflection Highlight -->
+    <ellipse cx="77.5" cy="59" rx="3.5" ry="2.2" transform="rotate(-30 77.5 59)" fill="#FFFFFF" opacity="0.95"/>
+    <circle cx="82.5" cy="64.5" r="1.1" fill="#E0F2FE" opacity="0.75"/>
+  </g>
+
+  <!-- ================= PUFFY WHITE BILLOWING SMOKE CLOUDS (At the launch base) ================= -->
+  <g filter="url(#rocketShadow)">
+    <!-- Back Shade Cloud Puffs -->
+    <ellipse cx="92" cy="126" rx="20" ry="16" fill="url(#cloudShade)"/>
+    <ellipse cx="58" cy="128" rx="18" ry="15" fill="url(#cloudShade)"/>
+
+    <!-- Bottom Left Large Cloud Puff -->
+    <circle cx="38" cy="116" r="17" fill="url(#cloudLight)"/>
+    
+    <!-- Bottom Center Main Puff -->
+    <circle cx="64" cy="114" r="21" fill="url(#cloudLight)"/>
+
+    <!-- Bottom Right Cloud Puff -->
+    <circle cx="92" cy="118" r="18" fill="url(#cloudLight)"/>
+
+    <!-- Center Top Supporting Puff -->
+    <circle cx="78" cy="104" r="16" fill="url(#cloudLight)"/>
+
+    <!-- Fluffy Cloud Highlights (Soft White Top Caps) -->
+    <ellipse cx="62" cy="102" rx="11" ry="6.5" fill="#FFFFFF" opacity="0.9"/>
+    <ellipse cx="88" cy="108" rx="9" ry="5.5" fill="#FFFFFF" opacity="0.85"/>
+    <ellipse cx="36" cy="107" rx="8" ry="5" fill="#FFFFFF" opacity="0.85"/>
+    <ellipse cx="76" cy="96" rx="7" ry="4" fill="#FFFFFF" opacity="0.9"/>
+  </g>
+</svg>

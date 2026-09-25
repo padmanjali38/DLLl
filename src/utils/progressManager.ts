@@ -1,0 +1,716 @@
+import { ModuleRecord, ModuleStatus, UserProgressState } from '../types/game';
+
+const STORAGE_KEY = 'hash_quest_field_notes_progress_v2';
+
+export const FIELD_NOTES_MODULES: Omit<ModuleRecord, 'status' | 'progressPercent'>[] = [
+  {
+    id: 'fn-01-basics',
+    number: '01',
+    code: 'FN-01',
+    title: 'WHAT IS A DOUBLY LINKED LIST? & NODE ANATOMY',
+    category: 'FOUNDATION',
+    description: 'Master the core DLL architecture: node structure with data payload, prev pointer, next pointer, and bi-directional navigation capability.',
+    criteriaDescription: 'Read the foundation theory and inspect the interactive DLL node anatomy diagram.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-01',
+  },
+  {
+    id: 'fn-02-modulo',
+    number: '02',
+    code: 'FN-02',
+    title: 'NODE STRUCTURE & MEMORY ALLOCATION',
+    category: 'FOUNDATION',
+    description: 'Understand dynamic heap memory allocation, struct/class representation across C++/Java/Python, and memory pointer layouts.',
+    criteriaDescription: 'Study the memory layout calculator and node allocation across programming languages.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-02',
+  },
+  {
+    id: 'fn-03-table',
+    number: '03',
+    code: 'FN-03',
+    title: 'HEAD & TAIL BOUNDARY POINTERS',
+    category: 'FOUNDATION',
+    description: 'Track the list boundary endpoints: head.prev = null and tail.next = null, empty list state, and single-node list state.',
+    criteriaDescription: 'Examine head and tail pointer transitions across edge cases.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-03',
+  },
+  {
+    id: 'fn-04-lifecycle',
+    number: '04',
+    code: 'FN-04',
+    title: 'BI-DIRECTIONAL TRAVERSAL PIPELINE',
+    category: 'FOUNDATION',
+    description: 'Walk forward from head to tail using curr = curr.next and backward from tail to head using curr = curr.prev in O(N) time.',
+    criteriaDescription: 'Run the interactive forward and backward traversal stepper.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-04',
+  },
+  {
+    id: 'fn-05-collision',
+    number: '05',
+    code: 'FN-05',
+    title: 'INSERTION AT HEAD (BEGINNING)',
+    category: 'TECHNIQUE',
+    description: 'Wire a new node at the beginning in O(1) time: newNode.next = head; head.prev = newNode; head = newNode.',
+    criteriaDescription: 'Simulate head node creation and pointer rewiring.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-05',
+  },
+  {
+    id: 'fn-06-chaining',
+    number: '06',
+    code: 'FN-06',
+    title: 'INSERTION AT TAIL (END)',
+    category: 'TECHNIQUE',
+    description: 'Wire a new node at the end in O(1) time: newNode.prev = tail; tail.next = newNode; tail = newNode.',
+    criteriaDescription: 'Master constant-time tail insertion and pointer updates.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-06',
+  },
+  {
+    id: 'fn-07-linear',
+    number: '07',
+    code: 'FN-07',
+    title: 'INSERTION AT MIDDLE POSITION (4-POINTER REWIRE)',
+    category: 'TECHNIQUE',
+    description: 'Insert between existing nodes by updating 4 pointers without breaking the bi-directional chain.',
+    criteriaDescription: 'Master the 4-pointer insertion sequence at a specified index.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-07',
+  },
+  {
+    id: 'fn-08-quadratic',
+    number: '08',
+    code: 'FN-08',
+    title: 'DELETION AT HEAD & TAIL',
+    category: 'TECHNIQUE',
+    description: 'Remove boundary nodes in O(1) time and update pointers: head = head.next; head.prev = null; and tail = tail.prev; tail.next = null.',
+    criteriaDescription: 'Master constant-time boundary node deletion and edge case handling.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-08',
+  },
+  {
+    id: 'fn-09-double',
+    number: '09',
+    code: 'FN-09',
+    title: 'DELETION OF A MIDDLE NODE (BYPASS REWIRING)',
+    category: 'TECHNIQUE',
+    description: 'Bypass target node in O(1) pointer updates: target.prev.next = target.next; target.next.prev = target.prev; and free memory.',
+    criteriaDescription: 'Master middle node removal and pointer bypass reconnection.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-09',
+  },
+  {
+    id: 'fn-10-realworld',
+    number: '10',
+    code: 'FN-10',
+    title: 'REAL-WORLD APPLICATIONS (LRU CACHE & BROWSER)',
+    category: 'ANALYSIS',
+    description: 'Explore production use cases: Browser forward/back history, Music playlists, Undo/Redo buffers, and LRU Cache.',
+    criteriaDescription: 'Study real-world software architecture leveraging Doubly Linked Lists.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-10',
+  },
+  {
+    id: 'fn-11-advantages',
+    number: '11',
+    code: 'FN-11',
+    title: 'ASYMPTOTIC COMPLEXITY & CORE ADVANTAGES',
+    category: 'ANALYSIS',
+    description: 'Deep dive into time complexity: O(1) insertion/deletion at ends, bi-directional flexibility, dynamic sizing vs arrays.',
+    criteriaDescription: 'Analyze time complexities, space requirements, and performance advantages.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-11',
+  },
+  {
+    id: 'fn-12-tradeoffs',
+    number: '12',
+    code: 'FN-12',
+    title: 'MEMORY OVERHEAD & TRADE-OFFS',
+    category: 'ANALYSIS',
+    description: 'Understand extra pointer memory consumption (2 pointers per node), lack of O(1) random indexing, and CPU cache locality limits.',
+    criteriaDescription: 'Analyze memory overhead, cache miss rates, and trade-offs against Singly Linked Lists and Arrays.',
+    targetTab: 'THEORY',
+    targetChapterId: 'theory-12',
+  },
+];
+
+const INITIAL_PROGRESS: UserProgressState = {
+  version: 2,
+  modules: {
+    'fn-01-basics': 'NOT_STARTED',
+    'fn-02-modulo': 'NOT_STARTED',
+    'fn-03-table': 'NOT_STARTED',
+    'fn-04-lifecycle': 'NOT_STARTED',
+    'fn-05-collision': 'NOT_STARTED',
+    'fn-06-chaining': 'NOT_STARTED',
+    'fn-07-linear': 'NOT_STARTED',
+    'fn-08-quadratic': 'NOT_STARTED',
+    'fn-09-double': 'NOT_STARTED',
+    'fn-10-realworld': 'NOT_STARTED',
+    'fn-11-advantages': 'NOT_STARTED',
+    'fn-12-tradeoffs': 'NOT_STARTED',
+  },
+  moduleProgress: {},
+  completedTheoryChapters: [],
+  currentTheoryChapterId: 'theory-01',
+  levelCompletedKeys: {},
+  levelsCompleted: [],
+  levelsMastered: [],
+  quizScores: {},
+  quizSubmitted: false,
+  quizFinalScore: 0,
+  masterChallengesCompleted: [],
+  sandboxOperationsCount: 0,
+  totalScore: 0,
+  streak: 0,
+  currentActiveModuleId: 'fn-01-basics',
+  lastActiveTimestamp: Date.now(),
+  completedVideos: [],
+  hasCelebrated100Percent: false,
+};
+
+// Normalized map of chapter aliases to standard IDs
+export const THEORY_ID_MAP: Record<string, string> = {
+  // Doubly Linked List Slugs
+  'what-is-dll': 'theory-01',
+  'node-structure': 'theory-02',
+  'head-tail-pointers': 'theory-03',
+  'bidirectional-traversal': 'theory-04',
+  'insert-head': 'theory-05',
+  'insert-tail': 'theory-06',
+  'insert-position': 'theory-07',
+  'delete-head-tail': 'theory-08',
+  'delete-node': 'theory-09',
+  'real-world-applications': 'theory-10',
+  'core-advantages': 'theory-11',
+  'limitations-tradeoffs': 'theory-12',
+  // Numerical & legacy aliases
+  'what-is-hashing': 'theory-01',
+  'hash-function': 'theory-02',
+  'hash-table': 'theory-03',
+  'hashing-lifecycle': 'theory-04',
+  'what-is-a-collision': 'theory-05',
+  'separate-chaining': 'theory-06',
+  'linear-probing': 'theory-07',
+  'quadratic-probing': 'theory-08',
+  'double-hashing': 'theory-09',
+  'load-factor': 'theory-08',
+  '01': 'theory-01',
+  '02': 'theory-02',
+  '03': 'theory-03',
+  '04': 'theory-04',
+  '05': 'theory-05',
+  '06': 'theory-06',
+  '07': 'theory-07',
+  '08': 'theory-08',
+  '09': 'theory-09',
+  '10': 'theory-10',
+  '11': 'theory-11',
+  '12': 'theory-12',
+};
+
+export const normalizeTheoryChapterId = (idOrSlug: string): string => {
+  if (!idOrSlug) return 'theory-01';
+  if (idOrSlug.startsWith('theory-')) return idOrSlug;
+  return THEORY_ID_MAP[idOrSlug] || idOrSlug;
+};
+
+type ProgressListener = (state: UserProgressState) => void;
+
+class ProgressManager {
+  private state: UserProgressState;
+  private listeners: Set<ProgressListener> = new Set();
+
+  constructor() {
+    this.state = this.loadState();
+  }
+
+  private loadState(): UserProgressState {
+    if (typeof window === 'undefined') return INITIAL_PROGRESS;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return INITIAL_PROGRESS;
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.version === 2) {
+        return {
+          ...INITIAL_PROGRESS,
+          ...parsed,
+          completedTheoryChapters: Array.isArray(parsed.completedTheoryChapters)
+            ? Array.from(new Set(parsed.completedTheoryChapters.map(normalizeTheoryChapterId)))
+            : [],
+          currentTheoryChapterId: parsed.currentTheoryChapterId
+            ? normalizeTheoryChapterId(parsed.currentTheoryChapterId)
+            : 'theory-01',
+          completedVideos: Array.isArray(parsed.completedVideos)
+            ? Array.from(new Set(parsed.completedVideos))
+            : [],
+          levelsCompleted: Array.isArray(parsed.levelsCompleted)
+            ? Array.from(new Set(parsed.levelsCompleted))
+            : [],
+        };
+      }
+      return INITIAL_PROGRESS;
+    } catch {
+      return INITIAL_PROGRESS;
+    }
+  }
+
+  private saveState() {
+    if (typeof window === 'undefined') return;
+    try {
+      this.state.lastActiveTimestamp = Date.now();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      this.notifyListeners();
+    } catch {
+      // Ignore write errors
+    }
+  }
+
+  public subscribe(listener: ProgressListener): () => void {
+    this.listeners.add(listener);
+    listener(this.getState());
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners() {
+    const copy = this.getState();
+    this.listeners.forEach((fn) => fn(copy));
+  }
+
+  public getState(): UserProgressState {
+    return JSON.parse(JSON.stringify(this.state));
+  }
+
+  // 1. THEORY STATS (12 Modules)
+  public getTheoryStats() {
+    const list = Array.isArray(this.state.completedTheoryChapters)
+      ? Array.from(new Set(this.state.completedTheoryChapters))
+      : [];
+    const completed = Math.min(12, list.length);
+    const total = 12;
+    const percentage = Math.round((completed / total) * 100);
+    return {
+      total,
+      completed,
+      percentage,
+      isComplete: completed >= total,
+      completedIds: [...list],
+      currentChapterId: this.state.currentTheoryChapterId,
+    };
+  }
+
+  // 2. VIDEO STATS (2 Video Lessons)
+  public getVideoStats() {
+    const list = Array.isArray(this.state.completedVideos) ? this.state.completedVideos : [];
+    const isIntroCompleted = list.includes('lesson-01') || list.includes('introduction');
+    const isCollisionCompleted = list.includes('lesson-02') || list.includes('collision');
+    const completed = (isIntroCompleted ? 1 : 0) + (isCollisionCompleted ? 1 : 0);
+    const total = 2;
+    const percentage = Math.round((completed / total) * 100);
+
+    return {
+      total,
+      completed,
+      percentage,
+      isIntroCompleted,
+      isCollisionCompleted,
+      isComplete: completed >= total,
+      completedVideos: [...list],
+    };
+  }
+
+  // 3. GAME STATS (3 DLL Levels)
+  public getGameStats() {
+    let rawList = Array.isArray(this.state.levelsCompleted) ? [...this.state.levelsCompleted] : [];
+
+    // Check completed tasks from storage to ensure consistency across page reloads
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('dll_master_game_completed_tasks_v4');
+        if (saved) {
+          const taskIds: string[] = JSON.parse(saved);
+          const level1Done = ['dll-task-1-1', 'dll-task-1-2', 'dll-task-1-3'].every((id) => taskIds.includes(id));
+          const level2Done = ['dll-task-2-1', 'dll-task-2-2', 'dll-task-2-3'].every((id) => taskIds.includes(id));
+          const level3Done = ['dll-task-3-1', 'dll-task-3-2', 'dll-task-3-3'].every((id) => taskIds.includes(id));
+
+          if (level1Done && !rawList.includes(1)) rawList.push(1);
+          if (level2Done && !rawList.includes(2)) rawList.push(2);
+          if (level3Done && !rawList.includes(3)) rawList.push(3);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const completedList = Array.from(new Set(rawList.filter((lvl) => lvl >= 1 && lvl <= 3)));
+    const completed = Math.min(3, completedList.length);
+    const total = 3;
+    const percentage = Math.round((completed / total) * 100);
+
+    return {
+      total,
+      completed,
+      percentage,
+      isComplete: completed >= total,
+      completedLevels: [...completedList],
+    };
+  }
+
+  // 4. QUIZ STATS (1 Whole Quiz)
+  public getQuizStats() {
+    const isSubmitted = Boolean(this.state.quizSubmitted);
+    const completed = isSubmitted ? 1 : 0;
+    const total = 1;
+    const percentage = isSubmitted ? 100 : 0;
+
+    return {
+      total,
+      completed,
+      percentage,
+      isSubmitted,
+      finalScore: this.state.quizFinalScore || 0,
+      isComplete: isSubmitted,
+    };
+  }
+
+  // ALL 12 MODULES
+  public getModules(): ModuleRecord[] {
+    const theoryDone = this.state.completedTheoryChapters || [];
+    const levelsDone = this.state.levelsCompleted || [];
+
+    const moduleMapping: Record<string, string> = {
+      'fn-01-basics': 'theory-01',
+      'fn-02-modulo': 'theory-02',
+      'fn-03-table': 'theory-03',
+      'fn-04-lifecycle': 'theory-04',
+      'fn-05-collision': 'theory-05',
+      'fn-06-chaining': 'theory-06',
+      'fn-07-linear': 'theory-07',
+      'fn-08-quadratic': 'theory-08',
+      'fn-09-double': 'theory-09',
+      'fn-10-realworld': 'theory-10',
+      'fn-11-advantages': 'theory-11',
+      'fn-12-tradeoffs': 'theory-12',
+    };
+
+    return FIELD_NOTES_MODULES.map((m) => {
+      let status = this.state.modules[m.id] || 'NOT_STARTED';
+      let progressPercent = this.state.moduleProgress[m.id] || 0;
+      const chapterId = moduleMapping[m.id];
+
+      if (chapterId && theoryDone.includes(chapterId)) {
+        status = 'COMPLETED';
+        progressPercent = 100;
+      }
+
+      // Also support game level masteries for interactive modules
+      if (m.id === 'fn-06-chaining' && levelsDone.includes(2)) {
+        status = this.state.levelsMastered.includes(2) ? 'MASTERED' : 'COMPLETED';
+        progressPercent = 100;
+      } else if (m.id === 'fn-07-linear' && levelsDone.includes(3)) {
+        status = this.state.levelsMastered.includes(3) ? 'MASTERED' : 'COMPLETED';
+        progressPercent = 100;
+      } else if (m.id === 'fn-08-quadratic' && levelsDone.includes(4)) {
+        status = this.state.levelsMastered.includes(4) ? 'MASTERED' : 'COMPLETED';
+        progressPercent = 100;
+      } else if (m.id === 'fn-09-double' && levelsDone.includes(5)) {
+        status = this.state.levelsMastered.includes(5) ? 'MASTERED' : 'COMPLETED';
+        progressPercent = 100;
+      }
+
+      if (status === 'COMPLETED' || status === 'MASTERED') {
+        progressPercent = 100;
+      } else if (status === 'IN_PROGRESS' && progressPercent === 0) {
+        progressPercent = 50;
+      }
+
+      return {
+        ...m,
+        status,
+        progressPercent,
+      };
+    });
+  }
+
+  // OVERALL PROGRESS (18 Unique Activities)
+  public getStats() {
+    const theory = this.getTheoryStats();
+    const video = this.getVideoStats();
+    const game = this.getGameStats();
+    const quiz = this.getQuizStats();
+
+    // Exactly 18 distinct measurable learning activities:
+    // 12 Theory Modules + 3 DLL Game Levels + 2 Videos + 1 Quiz
+    const total = 18;
+    const completed = theory.completed + video.completed + game.completed + quiz.completed;
+    const isAllComplete =
+      theory.completed === 12 &&
+      video.completed === 2 &&
+      game.completed === 3 &&
+      quiz.completed === 1;
+
+    // Strict 100% calculation: exactly 100% ONLY when every activity is finished
+    const percentage = isAllComplete
+      ? 100
+      : Math.min(99, Math.max(0, Math.round((completed / total) * 100)));
+
+    const modules = this.getModules();
+    const mastered = modules.filter((m) => m.status === 'MASTERED').length;
+
+    // Find next unfinished module
+    const currentUnfinished =
+      modules.find(
+        (m) => m.status === 'IN_PROGRESS' || m.status === 'NOT_STARTED'
+      ) || modules[modules.length - 1];
+
+    return {
+      total,
+      completed,
+      mastered,
+      percentage,
+      isAllComplete,
+      nextModule: currentUnfinished,
+      theory,
+      video,
+      game,
+      quiz,
+    };
+  }
+
+  // =========================================================================
+  // THEORY SPECIFIC PROGRESS (Idempotent & Exact)
+  // =========================================================================
+  public isTheoryChapterCompleted(chapterId: string): boolean {
+    const normalized = normalizeTheoryChapterId(chapterId);
+    return (this.state.completedTheoryChapters || []).includes(normalized);
+  }
+
+  public completeTheoryChapter(chapterId: string): boolean {
+    const normalized = normalizeTheoryChapterId(chapterId);
+
+    if (!this.state.completedTheoryChapters) {
+      this.state.completedTheoryChapters = [];
+    }
+
+    // Idempotent check: if already completed, do not re-add
+    if (this.state.completedTheoryChapters.includes(normalized)) {
+      return false; // Already completed
+    }
+
+    this.state.completedTheoryChapters.push(normalized);
+    this.state.currentTheoryChapterId = normalized;
+
+    // Synchronize underlying module ID
+    const chapterToModuleMap: Record<string, string> = {
+      'theory-01': 'fn-01-basics',
+      'theory-02': 'fn-02-modulo',
+      'theory-03': 'fn-03-table',
+      'theory-04': 'fn-04-lifecycle',
+      'theory-05': 'fn-05-collision',
+      'theory-06': 'fn-06-chaining',
+      'theory-07': 'fn-07-linear',
+      'theory-08': 'fn-08-quadratic',
+      'theory-09': 'fn-09-double',
+      'theory-10': 'fn-10-realworld',
+      'theory-11': 'fn-11-advantages',
+      'theory-12': 'fn-12-tradeoffs',
+    };
+
+    const targetModuleId = chapterToModuleMap[normalized];
+    if (targetModuleId) {
+      this.completeModule(targetModuleId);
+    }
+
+    this.saveState();
+    return true; // Newly completed!
+  }
+
+  public setCurrentTheoryChapter(chapterId: string) {
+    const normalized = normalizeTheoryChapterId(chapterId);
+    this.state.currentTheoryChapterId = normalized;
+    this.saveState();
+  }
+
+  // =========================================================================
+  // VIDEO SPECIFIC PROGRESS (Idempotent & Independent)
+  // =========================================================================
+  public isVideoCompleted(videoId: string): boolean {
+    const list = this.state.completedVideos || [];
+    return list.includes(videoId);
+  }
+
+  public completeVideo(videoId: string): boolean {
+    if (!this.state.completedVideos) {
+      this.state.completedVideos = [];
+    }
+    if (this.state.completedVideos.includes(videoId)) {
+      return false; // Already completed
+    }
+    this.state.completedVideos.push(videoId);
+    this.saveState();
+    return true; // Newly completed!
+  }
+
+  // =========================================================================
+  // MODULE LEVEL METHODS
+  // =========================================================================
+  public startModule(moduleId: string) {
+    if (!this.state.modules[moduleId] || this.state.modules[moduleId] === 'NOT_STARTED') {
+      this.state.modules[moduleId] = 'IN_PROGRESS';
+      this.state.moduleProgress[moduleId] = Math.max(this.state.moduleProgress[moduleId] || 0, 25);
+      this.state.currentActiveModuleId = moduleId;
+      this.saveState();
+    }
+  }
+
+  public updateModuleProgress(moduleId: string, percent: number) {
+    if (this.state.modules[moduleId] !== 'COMPLETED' && this.state.modules[moduleId] !== 'MASTERED') {
+      this.state.modules[moduleId] = 'IN_PROGRESS';
+      this.state.moduleProgress[moduleId] = Math.min(
+        100,
+        Math.max(this.state.moduleProgress[moduleId] || 0, percent)
+      );
+      this.state.currentActiveModuleId = moduleId;
+      this.saveState();
+    }
+  }
+
+  public completeModule(moduleId: string, isMastered: boolean = false) {
+    const currentStatus = this.state.modules[moduleId];
+    const newStatus: ModuleStatus =
+      isMastered || currentStatus === 'MASTERED' ? 'MASTERED' : 'COMPLETED';
+
+    this.state.modules[moduleId] = newStatus;
+    this.state.moduleProgress[moduleId] = 100;
+    this.state.currentActiveModuleId = moduleId;
+    this.saveState();
+  }
+
+  public markLevelCompleted(levelId: number, scoreAwarded: number = 100, isPerfect: boolean = false) {
+    if (!this.state.levelsCompleted) {
+      this.state.levelsCompleted = [];
+    }
+    if (!this.state.levelsMastered) {
+      this.state.levelsMastered = [];
+    }
+
+    const wasAlreadyCompleted = this.state.levelsCompleted.includes(levelId);
+
+    if (!wasAlreadyCompleted) {
+      this.state.levelsCompleted.push(levelId);
+      this.state.totalScore = (this.state.totalScore || 0) + scoreAwarded;
+    }
+    if (isPerfect && !this.state.levelsMastered.includes(levelId)) {
+      this.state.levelsMastered.push(levelId);
+    }
+
+    this.saveState();
+  }
+
+  public addScore(points: number) {
+    this.state.totalScore = (this.state.totalScore || 0) + points;
+    this.saveState();
+  }
+
+  public getTotalScore(): number {
+    return this.state.totalScore || 0;
+  }
+
+  public checkAndCompleteCertification() {
+    const stats = this.getStats();
+    if (stats.isAllComplete && !this.state.hasCelebrated100Percent) {
+      this.saveState();
+    }
+  }
+
+  public setCelebrationAcknowledged() {
+    this.state.hasCelebrated100Percent = true;
+    this.saveState();
+  }
+
+  public recordQuizCompletion(scores: Record<number, number>, correctCount: number, totalQuestions: number) {
+    this.state.quizScores = scores;
+    this.state.quizSubmitted = true;
+    const percentage = Math.round((correctCount / totalQuestions) * 100);
+    this.state.quizFinalScore = percentage;
+    this.saveState();
+  }
+
+  public resetQuizAttempt() {
+    this.state.quizScores = {};
+    this.state.quizSubmitted = false;
+    this.state.quizFinalScore = 0;
+    this.saveState();
+  }
+
+  public recordMasterChallenge(challengeId: string) {
+    if (!this.state.masterChallengesCompleted) {
+      this.state.masterChallengesCompleted = [];
+    }
+    if (!this.state.masterChallengesCompleted.includes(challengeId)) {
+      this.state.masterChallengesCompleted.push(challengeId);
+    }
+    this.saveState();
+  }
+
+  public recordSandboxOp() {
+    this.state.sandboxOperationsCount += 1;
+    this.saveState();
+  }
+
+  public resetProgress() {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('hash_quest_quiz_answers_v3');
+        localStorage.removeItem('hash_quest_quiz_submitted_v3');
+        localStorage.removeItem('dll_master_game_completed_tasks_v4');
+        localStorage.removeItem('dsa_game_completed_tasks_v1');
+      } catch {
+        // Ignore storage errors
+      }
+    }
+
+    this.state = {
+      version: 2,
+      modules: {
+        'fn-01-basics': 'NOT_STARTED',
+        'fn-02-modulo': 'NOT_STARTED',
+        'fn-03-table': 'NOT_STARTED',
+        'fn-04-lifecycle': 'NOT_STARTED',
+        'fn-05-collision': 'NOT_STARTED',
+        'fn-06-chaining': 'NOT_STARTED',
+        'fn-07-linear': 'NOT_STARTED',
+        'fn-08-quadratic': 'NOT_STARTED',
+        'fn-09-double': 'NOT_STARTED',
+        'fn-10-realworld': 'NOT_STARTED',
+        'fn-11-advantages': 'NOT_STARTED',
+        'fn-12-tradeoffs': 'NOT_STARTED',
+      },
+      moduleProgress: {},
+      completedTheoryChapters: [],
+      currentTheoryChapterId: 'theory-01',
+      levelCompletedKeys: {},
+      levelsCompleted: [],
+      levelsMastered: [],
+      quizScores: {},
+      quizSubmitted: false,
+      quizFinalScore: 0,
+      masterChallengesCompleted: [],
+      sandboxOperationsCount: 0,
+      totalScore: 0,
+      streak: 0,
+      currentActiveModuleId: 'fn-01-basics',
+      lastActiveTimestamp: Date.now(),
+      completedVideos: [],
+      hasCelebrated100Percent: false,
+    };
+    this.saveState();
+  }
+}
+
+export const progressManager = new ProgressManager();

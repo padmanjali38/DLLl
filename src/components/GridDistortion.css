@@ -1,0 +1,14 @@
+/* GridDistortion Editorial Canvas Styling */
+.home-grid-distortion {
+  width: 100%;
+  height: 100%;
+  min-height: 380px;
+  position: relative;
+  touch-action: pan-y;
+}
+
+@media (max-width: 768px) {
+  .home-grid-distortion {
+    min-height: 280px;
+  }
+}

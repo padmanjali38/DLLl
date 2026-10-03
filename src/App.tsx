@@ -820,7 +820,7 @@ export default function App() {
         }}
       />
 
-      {/* Global AI Bot Floating Icon */}
+      {/* Floating AlgoLearn Logo (Replaces Gemini Floating Icon) */}
       <AIBotFloatingButton />
     </div>
   );

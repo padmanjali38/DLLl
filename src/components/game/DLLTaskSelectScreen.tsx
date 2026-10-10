@@ -97,16 +97,16 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
                     </span>
                   </div>
 
-                  {/* XP Badge OR Done Status */}
+                  {/* Points Badge (+6 pts) OR Completed Status */}
                   {isDone ? (
                     <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Done</span>
+                      <span>Completed (+6 pts)</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-200/60 dark:border-amber-800/40">
+                    <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-[#2563EB] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/40">
                       <Award className="w-3.5 h-3.5" />
-                      <span>+{task.xp} XP</span>
+                      <span>+6 pts</span>
                     </span>
                   )}
                 </div>

@@ -24,17 +24,16 @@ import { LearnHashingSection } from './components/LearnHashingSection';
 import { VideoTutorialsView } from './components/VideoTutorialsView';
 import { MyProgressView } from './components/MyProgressView';
 import { QuizView } from './components/QuizView';
-import { PointsDashboardView } from './components/PointsDashboardView';
 import { QuestCompletionView } from './components/QuestCompletionView';
 import { FieldNotesBackground } from './components/FieldNotesBackground';
 import { GameHintCard } from './components/GameHintCard';
 import { GameLevelGuide } from './components/GameLevelGuide';
 import { CompletionCelebrationModal } from './components/CompletionCelebrationModal';
-import { ResetProgressModal } from './components/ResetProgressModal';
 import { AIBotFloatingButton } from './components/AIBotFloatingButton';
 import { DLLMasterGame } from './components/DLLMasterGame';
 import { Sparkles } from 'lucide-react';
 import { progressManager } from './utils/progressManager';
+import { pointsManager } from './utils/pointsManager';
 import { useScrollReveal } from './hooks/useScrollReveal';
 
 export default function App() {
@@ -42,7 +41,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<MainViewTab>('GAME');
   const [activeTheoryTopic, setActiveTheoryTopic] = useState<string>('what-is-hashing');
   const [show100Celebration, setShow100Celebration] = useState<boolean>(false);
-  const [showResetModal, setShowResetModal] = useState<boolean>(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState<boolean>(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
@@ -95,6 +93,23 @@ export default function App() {
   const [speed, setSpeed] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [gameResetCount, setGameResetCount] = useState<number>(0);
+
+  // Global Reset handler: resets Visualizer, Game, Quiz, and Progress data across app
+  const handleGlobalReset = () => {
+    // 1. Reset progressManager and pointsManager
+    progressManager.resetProgress();
+    pointsManager.resetPoints();
+
+    // 2. Clear all local application states
+    setScore(0);
+    setStreak(0);
+    setCompletedLevels([]);
+    setCurrentLevelIndex(0);
+    setGameResetCount((c) => c + 1);
+
+    // 3. Reset table slots / probing states
+    initLevel(0);
+  };
 
   // Trigger scroll-to-reveal animations on tab and level changes
   useScrollReveal([activeTab, currentLevelIndex]);
@@ -613,8 +628,7 @@ export default function App() {
           }}
           speed={speed}
           onChangeSpeed={(sp) => setSpeed(sp)}
-          onResetLevel={() => initLevel(currentLevelIndex)}
-          onResetAllProgress={() => setShowResetModal(true)}
+          onResetAllProgress={handleGlobalReset}
           onToggleMobileSidebar={handleToggleSidebar}
           isDesktopSidebarOpen={desktopSidebarOpen}
           isMobileSidebarOpen={mobileSidebarOpen}
@@ -687,7 +701,7 @@ export default function App() {
 
             {/* 2.5. VIDEO LEARNING SECTION */}
             {activeTab === 'VIDEO' && (
-              <VideoTutorialsView />
+              <VideoTutorialsView key={`video-${gameResetCount}`} />
             )}
 
             {/* 3. GAME PLAY SECTION - DLL MASTER ADVENTURE */}
@@ -696,7 +710,6 @@ export default function App() {
                 <DLLMasterGame
                   key={`dll-master-game-${gameResetCount}`}
                   resetTrigger={gameResetCount}
-                  onResetRequest={() => setShowResetModal(true)}
                   onOpenTheory={() => {
                     setActiveTheoryTopic('theory-01');
                     setActiveTab('THEORY');
@@ -723,6 +736,7 @@ export default function App() {
             {/* 5. QUIZ EXAMINATION SECTION */}
             {activeTab === 'QUIZ' && (
               <QuizView
+                key={`quiz-${gameResetCount}`}
                 onNavigateToTheory={handleNavigateToTheory}
                 onNavigateToQuest={handleNavigateToQuest}
                 onNavigateToProgress={() => setActiveTab('PROGRESS')}
@@ -733,6 +747,7 @@ export default function App() {
             {/* 6. PROGRESS AUDIT SECTION */}
             {activeTab === 'PROGRESS' && (
               <MyProgressView
+                key={`progress-${gameResetCount}`}
                 onNavigateToTab={(tab, levelId, chapterId) => {
                   if (tab === 'THEORY' || tab === 'LEARN') {
                     if (chapterId) setActiveTheoryTopic(chapterId);
@@ -749,11 +764,6 @@ export default function App() {
                   }
                 }}
               />
-            )}
-
-            {/* 7. POINTS & TOURNAMENT STANDINGS SECTION */}
-            {activeTab === 'POINTS' && (
-              <PointsDashboardView />
             )}
           </div>
         </main>
@@ -799,30 +809,6 @@ export default function App() {
         onNavigateToProgress={() => {
           setShow100Celebration(false);
           setActiveTab('PROGRESS');
-        }}
-      />
-
-      {/* Centered Reset Progress Confirmation Modal */}
-      <ResetProgressModal
-        isOpen={showResetModal}
-        onClose={() => setShowResetModal(false)}
-        title="RESET PROGRESS?"
-        confirmationMessage="Are you sure you want to reset your learning progress? All completed theory chapters, watched videos, completed game levels, quiz progress, and mastery progress will be reset."
-        cancelText="EXIT"
-        confirmText="RESET"
-        onConfirm={() => {
-          localStorage.removeItem('dll_master_game_completed_tasks_v4');
-          localStorage.removeItem('dsa_game_completed_tasks_v1');
-          localStorage.removeItem('hash_quest_quiz_answers_v3');
-          localStorage.removeItem('hash_quest_quiz_submitted_v3');
-          progressManager.resetProgress();
-          setScore(0);
-          setStreak(0);
-          setCompletedLevels([]);
-          setCurrentLevelIndex(0);
-          initLevel(0);
-          setGameResetCount((c) => c + 1);
-          setShowResetModal(false);
         }}
       />
 

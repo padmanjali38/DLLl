@@ -488,7 +488,16 @@ class ProgressManager {
 
   public subscribe(listener: ProgressListener): () => void {
     this.listeners.add(listener);
-    listener(this.getState());
+    const defer = typeof queueMicrotask === 'function' ? queueMicrotask : setTimeout;
+    defer(() => {
+      if (this.listeners.has(listener)) {
+        try {
+          listener(this.getState());
+        } catch (err) {
+          console.error('[progressManager] Listener error on subscribe:', err);
+        }
+      }
+    });
     return () => {
       this.listeners.delete(listener);
     };
@@ -496,7 +505,16 @@ class ProgressManager {
 
   private notifyListeners() {
     const copy = this.getState();
-    this.listeners.forEach((fn) => fn(copy));
+    const defer = typeof queueMicrotask === 'function' ? queueMicrotask : setTimeout;
+    defer(() => {
+      this.listeners.forEach((fn) => {
+        try {
+          fn(copy);
+        } catch (err) {
+          console.error('[progressManager] Listener error:', err);
+        }
+      });
+    });
   }
 
   public getState(): UserProgressState {
@@ -622,7 +640,7 @@ class ProgressManager {
     const guidedEvents = events.filter((ev) => ev.activityType === 'GAME' && ev.reason === 'GUIDED_SOLVE_STEP');
     const gameDeductions = hintEvents.length * 1 + guidedEvents.length * 2;
 
-    const gameNetRaw = Math.max(0, Math.min(gameMaxRaw, gameEarnedRaw - gameDeductions));
+    const gameNetRaw = Math.min(gameMaxRaw, gameEarnedRaw - gameDeductions);
     const gameEarnedPoints =
       gameMaxRaw > 0 ? (gameNetRaw / gameMaxRaw) * gameBudget : 0;
 
@@ -635,17 +653,14 @@ class ProgressManager {
 
     const quizEarnedRaw = correctQuizEvents.length * 3;
     const quizDeductions = incorrectQuizEvents.length * 1; // -1 raw point deduction
-    const quizNetRaw = Math.max(0, Math.min(quizMaxRaw, quizEarnedRaw - quizDeductions));
+    const quizNetRaw = Math.min(quizMaxRaw, quizEarnedRaw - quizDeductions);
     const quizEarnedPoints =
       quizMaxRaw > 0 ? (quizNetRaw / quizMaxRaw) * quizBudget : 0;
 
     const quizCompletedCount = Array.from(new Set(quizEvents.map((ev) => ev.activityId))).length;
 
-    // Overall topic competition score (clamped between 0 and 100)
-    const earnedScore = Math.max(
-      0,
-      Math.min(100, videoEarnedPoints + gameEarnedPoints + quizEarnedPoints)
-    );
+    // Overall topic competition score (can be negative if deductions exceed earned, max 100)
+    const earnedScore = Math.min(100, videoEarnedPoints + gameEarnedPoints + quizEarnedPoints);
 
     // Dynamic completion percentage:
     // Theory modules + Videos + Game tasks + Quiz questions
@@ -975,7 +990,217 @@ class ProgressManager {
     };
   }
 
-  public getModules(): ModuleRecord[] {
+  public getModules(topicId: string = 'dll'): ModuleRecord[] {
+    if (topicId === 'queue') {
+      const queueModules: Omit<ModuleRecord, 'status' | 'progressPercent'>[] = [
+        {
+          id: 'queue-mod-01',
+          number: '01',
+          code: 'Q-01',
+          title: 'FIFO PIPELINE ARCHITECTURE & ANATOMY',
+          category: 'FOUNDATION',
+          description: 'Master first-in first-out sequential buffering, front and rear boundary pointer mechanics.',
+          criteriaDescription: 'Understand basic FIFO sequential ordering.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-01',
+        },
+        {
+          id: 'queue-mod-02',
+          number: '02',
+          code: 'Q-02',
+          title: 'ARRAY & LINKED LIST QUEUE IMPLEMENTATIONS',
+          category: 'FOUNDATION',
+          description: 'Compare static contiguous memory ring buffers against dynamic node-based pointer queues.',
+          criteriaDescription: 'Analyze memory layouts of array vs linked queues.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-02',
+        },
+        {
+          id: 'queue-mod-03',
+          number: '03',
+          code: 'Q-03',
+          title: 'ENQUEUE & DEQUEUE CONSTANT-TIME OPS',
+          category: 'TECHNIQUE',
+          description: 'Implement O(1) insertion at rear and O(1) removal from front boundary.',
+          criteriaDescription: 'Verify constant time pointer updates on both boundaries.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-03',
+        },
+        {
+          id: 'queue-mod-04',
+          number: '04',
+          code: 'Q-04',
+          title: 'CIRCULAR RING BUFFER & MODULO MATH',
+          category: 'TECHNIQUE',
+          description: 'Prevent memory drift by wrapping indices using modulo arithmetic: (rear + 1) % capacity.',
+          criteriaDescription: 'Demonstrate circular array wrap-around boundary math.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-04',
+        },
+        {
+          id: 'queue-mod-05',
+          number: '05',
+          code: 'Q-05',
+          title: 'QUEUE IMPLEMENTATION VIA TWO STACKS',
+          category: 'TECHNIQUE',
+          description: 'Simulate FIFO behavior using in-stack and out-stack with amortized O(1) complexity.',
+          criteriaDescription: 'Analyze amortized cost of stack reversal.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-05',
+        },
+        {
+          id: 'queue-mod-06',
+          number: '06',
+          code: 'Q-06',
+          title: 'BREADTH-FIRST SEARCH (BFS) TRAVERSAL',
+          category: 'ANALYSIS',
+          description: 'Drive level-order tree and unweighted graph exploration using queue exploration horizons.',
+          criteriaDescription: 'Trace frontier vertex expansion using queue FIFO.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-06',
+        },
+        {
+          id: 'queue-mod-07',
+          number: '07',
+          code: 'Q-07',
+          title: 'PRIORITY QUEUE & BINARY HEAPS',
+          category: 'ANALYSIS',
+          description: 'Transition from strict arrival-order FIFO to priority-weighted element dispatching.',
+          criteriaDescription: 'Contrast FIFO queues with priority heap structures.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-07',
+        },
+        {
+          id: 'queue-mod-08',
+          number: '08',
+          code: 'Q-08',
+          title: 'CONCURRENT PRODUCER-CONSUMER BUFFERS',
+          category: 'ANALYSIS',
+          description: 'Manage thread-safe blocking queues and asynchronous worker task pipelines.',
+          criteriaDescription: 'Examine bounded buffer synchronization mechanics.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-08',
+        },
+      ];
+      return queueModules.map((m) => ({ ...m, status: 'NOT_STARTED', progressPercent: 0 }));
+    }
+
+    if (topicId === 'graphs') {
+      const graphModules: Omit<ModuleRecord, 'status' | 'progressPercent'>[] = [
+        {
+          id: 'graphs-mod-01',
+          number: '01',
+          code: 'G-01',
+          title: 'GRAPH TOPOLOGIES & VERTICES/EDGES',
+          category: 'FOUNDATION',
+          description: 'Understand directed, undirected, weighted, and unweighted graph topologies.',
+          criteriaDescription: 'Inspect vertices, edges, and degree calculations.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-01',
+        },
+        {
+          id: 'graphs-mod-02',
+          number: '02',
+          code: 'G-02',
+          title: 'ADJACENCY MATRIX REPRESENTATION',
+          category: 'FOUNDATION',
+          description: 'Dense O(V^2) 2D array representation for constant-time edge queries.',
+          criteriaDescription: 'Analyze memory and edge query trade-offs of matrices.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-02',
+        },
+        {
+          id: 'graphs-mod-03',
+          number: '03',
+          code: 'G-03',
+          title: 'ADJACENCY LIST REPRESENTATION',
+          category: 'FOUNDATION',
+          description: 'Sparse O(V + E) list-of-lists representation optimal for traversals.',
+          criteriaDescription: 'Examine dynamic vertex adjacency lists.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-03',
+        },
+        {
+          id: 'graphs-mod-04',
+          number: '04',
+          code: 'G-04',
+          title: 'BREADTH-FIRST SEARCH (BFS)',
+          category: 'TECHNIQUE',
+          description: 'Layer-by-layer exploration for shortest path on unweighted graphs.',
+          criteriaDescription: 'Trace FIFO vertex exploration queue.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-04',
+        },
+        {
+          id: 'graphs-mod-05',
+          number: '05',
+          code: 'G-05',
+          title: 'DEPTH-FIRST SEARCH (DFS)',
+          category: 'TECHNIQUE',
+          description: 'Recursive and stack-based exploration with visited coloring.',
+          criteriaDescription: 'Trace call stack backtracking during DFS.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-05',
+        },
+        {
+          id: 'graphs-mod-06',
+          number: '06',
+          code: 'G-06',
+          title: 'CYCLE DETECTION IN DIRECTED GRAPHS',
+          category: 'TECHNIQUE',
+          description: 'Identify back edges in DFS recursion tree using 3-state vertex coloring.',
+          criteriaDescription: 'Verify white-gray-black vertex cycle detection.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-06',
+        },
+        {
+          id: 'graphs-mod-07',
+          number: '07',
+          code: 'G-07',
+          title: 'TOPOLOGICAL SORTING (KAHN & DFS)',
+          category: 'TECHNIQUE',
+          description: 'Linear ordering of vertices in Directed Acyclic Graphs (DAGs).',
+          criteriaDescription: 'Calculate in-degrees for dependency resolution.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-07',
+        },
+        {
+          id: 'graphs-mod-08',
+          number: '08',
+          code: 'G-08',
+          title: 'DIJKSTRA SHORTEST PATH ALGORITHM',
+          category: 'ANALYSIS',
+          description: 'Greedy shortest path in non-negative weighted graphs using min-heaps.',
+          criteriaDescription: 'Trace distance relaxation and priority queue extraction.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-08',
+        },
+        {
+          id: 'graphs-mod-09',
+          number: '09',
+          code: 'G-09',
+          title: 'BIPARTITE GRAPH VERIFICATION',
+          category: 'ANALYSIS',
+          description: 'Verify 2-colorability using alternating BFS/DFS coloring.',
+          criteriaDescription: 'Test for odd-length cycles in bipartite networks.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-09',
+        },
+        {
+          id: 'graphs-mod-10',
+          number: '10',
+          code: 'G-10',
+          title: 'MINIMUM SPANNING TREES (KRUSKAL & PRIM)',
+          category: 'ANALYSIS',
+          description: 'Find lowest total edge weight tree spanning all vertices.',
+          criteriaDescription: 'Analyze greedy cut property and union-find disjoint sets.',
+          targetTab: 'THEORY',
+          targetChapterId: 'theory-10',
+        },
+      ];
+      return graphModules.map((m) => ({ ...m, status: 'NOT_STARTED', progressPercent: 0 }));
+    }
+
     const theoryDone = this.state.completedTheoryChapters || [];
     const levelsDone = this.state.levelsCompleted || [];
 
@@ -1191,10 +1416,17 @@ class ProgressManager {
     this.saveState();
   }
 
-  public resetQuizAttempt() {
+  public resetQuizAttempt(topicId: string = 'dll') {
     this.state.quizScores = {};
     this.state.quizSubmitted = false;
     this.state.quizFinalScore = 0;
+
+    // Remove existing quiz scoring events so reattempt can record fresh scores cleanly
+    this.scoringEvents = this.scoringEvents.filter(
+      (ev) => !(ev.activityType === 'QUIZ' && ev.topicId === topicId)
+    );
+    this.eventKeySet = new Set(this.scoringEvents.map((ev) => this.getEventKey(ev)));
+    this.saveScoringEvents();
     this.saveState();
   }
 
@@ -1216,11 +1448,18 @@ class ProgressManager {
   public resetProgress() {
     if (typeof window !== 'undefined') {
       try {
+        // Clear Quiz storage
+        localStorage.removeItem('algolearn_quiz_answers_v4');
+        localStorage.removeItem('algolearn_quiz_submitted_v4');
+        localStorage.removeItem('algolearn_quiz_attempt_id_v4');
         localStorage.removeItem('hash_quest_quiz_answers_v3');
         localStorage.removeItem('hash_quest_quiz_submitted_v3');
+        // Clear Game storage
         localStorage.removeItem('dll_master_game_completed_tasks_v4');
         localStorage.removeItem('dsa_game_completed_tasks_v1');
+        // Clear Scoring & Synced events storage
         localStorage.removeItem(SCORING_EVENTS_KEY);
+        localStorage.removeItem('algolearn_synced_events_v1');
       } catch {
         // Ignore storage errors
       }

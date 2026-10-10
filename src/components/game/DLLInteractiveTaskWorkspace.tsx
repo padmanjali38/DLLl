@@ -28,6 +28,7 @@ import {
 } from './dllGameData';
 import { soundManager } from '../../utils/audio';
 import { progressManager } from '../../utils/progressManager';
+import { pointsManager } from '../../utils/pointsManager';
 
 export interface HistorySnapshot {
   nodes: DLLNodeState[];
@@ -1683,6 +1684,27 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackExplanation, setFeedbackExplanation] = useState<string | null>(null);
   const [showHint, setShowHint] = useState<boolean>(false);
+  // Deduction Notification Popup State
+  const [deductionPopup, setDeductionPopup] = useState<{
+    amount: number;
+    reason: string;
+    actionType: 'HINT' | 'GUIDED';
+    visible: boolean;
+  } | null>(null);
+  const deductionTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showDeductionNotification = (amount: number, reason: string, actionType: 'HINT' | 'GUIDED') => {
+    if (deductionTimerRef.current) clearTimeout(deductionTimerRef.current);
+    setDeductionPopup({
+      amount,
+      reason,
+      actionType,
+      visible: true,
+    });
+    deductionTimerRef.current = setTimeout(() => {
+      setDeductionPopup(null);
+    }, 4500);
+  };
 
   // Guided Solve State
   const [guidedState, setGuidedState] = useState<{
@@ -1856,6 +1878,8 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     setFeedbackMessage(null);
     setFeedbackExplanation(null);
     setShowHint(false);
+    if (deductionTimerRef.current) clearTimeout(deductionTimerRef.current);
+    setDeductionPopup(null);
     setHighlightedPointer(null);
     setGuidedHistory([]);
     setGuidedState({
@@ -2201,7 +2225,14 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     const newStepNumber = nextStepIndex + 1;
 
     // Deduct 2 raw points for each Guided Solve step actually used (deductions cannot duplicate)
-    progressManager.recordGuidedSolveStepUsed('dll', task.id, newStepNumber);
+    const isNewGuidedStep = progressManager.recordGuidedSolveStepUsed('dll', task.id, newStepNumber);
+    pointsManager.recordEvent('GUIDED_STEP_USED', `${task.id}-s${newStepNumber}`, {
+      taskId: task.id,
+      stepNumber: newStepNumber,
+    });
+    if (isNewGuidedStep) {
+      showDeductionNotification(newStepNumber * 2, 'Guided Solve Used', 'GUIDED');
+    }
 
     soundManager.playClick();
 
@@ -2708,6 +2739,44 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
         guidedState.isActive ? 'max-w-7xl' : 'max-w-5xl'
       } mx-auto flex flex-col gap-6 font-sans select-text transition-all duration-200`}
     >
+      {/* Scoring Deduction Notification Popup */}
+      {deductionPopup && deductionPopup.visible && (
+        <div
+          id="game-deduction-notification"
+          role="alert"
+          aria-live="assertive"
+          className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3 rounded-2xl border-2 border-rose-300 dark:border-rose-900/80 bg-rose-50/95 dark:bg-[#1E1118] text-rose-950 dark:text-rose-100 shadow-sm animate-fade-in transition-all"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-2xs">
+              <AlertTriangle className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm">
+              <span className="font-mono font-black text-rose-600 dark:text-rose-400 text-sm sm:text-base tracking-tight">
+                -{deductionPopup.amount} {deductionPopup.amount === 1 ? 'Point' : 'Points'}
+              </span>
+              <span className="text-rose-300 dark:text-rose-700 font-bold select-none">—</span>
+              <span className="font-bold text-rose-900 dark:text-rose-200">
+                {deductionPopup.reason}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="btn-dismiss-deduction-popup"
+            onClick={() => {
+              if (deductionTimerRef.current) clearTimeout(deductionTimerRef.current);
+              setDeductionPopup(null);
+            }}
+            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-700 dark:hover:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors cursor-pointer shrink-0"
+            title="Dismiss notification"
+            aria-label="Dismiss notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Two-Column Responsive Container: Left 70%, Right 30% on desktop */}
       <div
         className={`w-full flex flex-col ${
@@ -2738,10 +2807,6 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
                   Task {task.taskNumber}
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-200/60 dark:border-amber-800/40 flex items-center gap-1">
-                  <Award className="w-3 h-3" />
-                  <span>{task.xp} XP</span>
                 </span>
               </div>
             </div>
@@ -3751,9 +3816,6 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
                 <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
                   {feedbackTitle || 'Correct!'}
                 </h4>
-                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-200/80 dark:bg-emerald-900/80 text-emerald-900 dark:text-emerald-200">
-                  +{task.xp} XP
-                </span>
               </div>
               <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300 font-normal leading-relaxed">
                 {feedbackMessage || 'Correct! The DLL is valid.'}
@@ -3893,7 +3955,14 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
               setShowHint((prev) => {
                 const next = !prev;
                 if (next) {
-                  progressManager.recordHintUsed('dll', task.id);
+                  const wasHintRecorded = progressManager.recordHintUsed('dll', task.id);
+                  pointsManager.recordEvent('HINT_USED', `${task.id}-h1`, {
+                    taskId: task.id,
+                    hintIndex: 1,
+                  });
+                  if (wasHintRecorded) {
+                    showDeductionNotification(1, 'Hint Used', 'HINT');
+                  }
                 }
                 return next;
               });

@@ -38,14 +38,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   const [isProgressHovered, setIsProgressHovered] = useState(false);
 
   React.useEffect(() => {
+    let isMounted = true;
     const unsub = progressManager.subscribe(() => {
-      setStats(progressManager.getStats());
+      if (isMounted) setStats(progressManager.getStats());
     });
     const unsubPoints = pointsManager.subscribe(() => {
-      pointsManager.getBreakdown().then((b) => setTotalPoints(b.totalPoints));
+      pointsManager.getBreakdown().then((b) => {
+        if (isMounted) setTotalPoints(b.totalPoints);
+      });
     });
-    pointsManager.getBreakdown().then((b) => setTotalPoints(b.totalPoints));
+    pointsManager.getBreakdown().then((b) => {
+      if (isMounted) setTotalPoints(b.totalPoints);
+    });
     return () => {
+      isMounted = false;
       unsub();
       unsubPoints();
     };
@@ -93,13 +99,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       icon: TrendingUp,
       badge: `${stats.percentage}%`,
       badgeClass: 'bg-blue-50 dark:bg-blue-900/40 text-[#2563EB] dark:text-blue-200 font-bold border border-blue-100 dark:border-blue-500/30',
-    },
-    {
-      id: 'POINTS' as MainViewTab,
-      label: 'Points',
-      icon: Award,
-      badge: `${totalPoints} pts`,
-      badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300 font-bold border border-emerald-100 dark:border-emerald-500/30',
     },
   ];
 

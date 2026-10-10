@@ -127,16 +127,27 @@ class PointsManager {
   }
 
   private notifySubscribers() {
-    this.subscribers.forEach((cb) => {
-      try {
-        cb();
-      } catch (err) {
-        console.error(err);
-      }
+    const defer = typeof queueMicrotask === 'function' ? queueMicrotask : setTimeout;
+    defer(() => {
+      this.subscribers.forEach((cb) => {
+        try {
+          cb();
+        } catch (err) {
+          console.error(err);
+        }
+      });
     });
   }
 
   // Record an action event securely on the backend
+  public resetPoints(): void {
+    this.syncedKeys.clear();
+    try {
+      localStorage.removeItem(STORAGE_SYNCED_EVENTS_KEY);
+    } catch {}
+    this.notifySubscribers();
+  }
+
   public async recordEvent(
     eventType:
       | 'THEORY_MODULE_COMPLETED'
@@ -262,7 +273,7 @@ class PointsManager {
 
       // 4. Sync quiz answers
       try {
-        const rawAnswers = localStorage.getItem('hash_quest_quiz_answers_v3');
+        const rawAnswers = localStorage.getItem('algolearn_quiz_answers_v4') || localStorage.getItem('hash_quest_quiz_answers_v3');
         if (rawAnswers) {
           const answers = JSON.parse(rawAnswers);
           for (const [qId, rec] of Object.entries(answers)) {
@@ -285,7 +296,7 @@ class PointsManager {
     }
   }
 
-  // Local fallback calculator
+  // Local fallback calculator aligned with exact 100-point rubric
   private computeLocalBreakdown(): PointsBreakdown {
     const pState = progressManager.getState();
     const theoryCompleted = pState.completedTheoryChapters || [];
@@ -301,14 +312,16 @@ class PointsManager {
     let quizWrong = 0;
     const quizDetails: Array<{ questionId: number; isCorrect: boolean; points: number; timestamp: number }> = [];
     try {
-      const raw = localStorage.getItem('hash_quest_quiz_answers_v3');
+      const raw = localStorage.getItem('algolearn_quiz_answers_v4') || localStorage.getItem('hash_quest_quiz_answers_v3');
       if (raw) {
         const ans = JSON.parse(raw);
         for (const [qId, rec] of Object.entries(ans)) {
           const r = rec as any;
-          if (r.isCorrect) {
+          if (r.isTimeout || r.selectedOptionIndex === -1) {
+            quizDetails.push({ questionId: Number(qId), isCorrect: false, points: 0, timestamp: Date.now() });
+          } else if (r.isCorrect) {
             quizCorrect++;
-            quizDetails.push({ questionId: Number(qId), isCorrect: true, points: 1, timestamp: Date.now() });
+            quizDetails.push({ questionId: Number(qId), isCorrect: true, points: 3, timestamp: Date.now() });
           } else {
             quizWrong++;
             quizDetails.push({ questionId: Number(qId), isCorrect: false, points: -1, timestamp: Date.now() });
@@ -317,12 +330,13 @@ class PointsManager {
       }
     } catch {}
 
-    const theoryPoints = theoryCompleted.length * 2;
-    const videoPoints = videoCompleted.length * 3;
-    const gamePoints = gameCompleted.length * 4;
-    const quizPoints = quizCorrect * 1 - quizWrong * 1;
+    // 16 pts Visualize + 54 pts Game + 30 pts Quiz = 100 pts Max
+    const theoryPoints = 0;
+    const videoPoints = Math.min(16, videoCompleted.length * 8);
+    const gamePoints = Math.min(54, gameCompleted.length * 6);
+    const quizPoints = Math.max(0, Math.min(30, quizCorrect * 3 - quizWrong * 1));
     const penaltyPoints = 0;
-    const totalPoints = theoryPoints + videoPoints + gamePoints + quizPoints + penaltyPoints;
+    const totalPoints = Math.min(100, Math.max(0, theoryPoints + videoPoints + gamePoints + quizPoints + penaltyPoints));
 
     return {
       theoryPoints,
@@ -332,9 +346,9 @@ class PointsManager {
       penaltyPoints,
       totalPoints,
       details: {
-        theory: theoryCompleted.map((id) => ({ id, title: id, points: 2 })),
-        video: videoCompleted.map((id) => ({ id, title: id, points: 3 })),
-        games: gameCompleted.map((id) => ({ id, title: id, points: 4 })),
+        theory: theoryCompleted.map((id) => ({ id, title: id, points: 0 })),
+        video: videoCompleted.map((id) => ({ id, title: id, points: 8 })),
+        games: gameCompleted.map((id) => ({ id, title: id, points: 6 })),
         quiz: quizDetails,
         penalties: [],
       },

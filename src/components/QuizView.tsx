@@ -19,8 +19,11 @@ import {
   Clock,
   TrendingUp,
   AlertTriangle,
+  Play,
+  RotateCcw,
 } from 'lucide-react';
-import { progressManager } from '../utils/progressManager';
+import { progressManager, TOPIC_REGISTRY } from '../utils/progressManager';
+import { pointsManager } from '../utils/pointsManager';
 import { soundManager } from '../utils/audio';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
@@ -217,6 +220,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
 
 const QUIZ_STORAGE_ANSWERS_KEY = 'algolearn_quiz_answers_v4';
 const QUIZ_STORAGE_SUBMITTED_KEY = 'algolearn_quiz_submitted_v4';
+const QUIZ_STORAGE_ATTEMPT_KEY = 'algolearn_quiz_attempt_id_v4';
 const QUESTION_TIME_LIMIT_SECONDS = 20;
 
 export const QuizView: React.FC<QuizViewProps> = ({
@@ -248,6 +252,85 @@ export const QuizView: React.FC<QuizViewProps> = ({
     }
   });
 
+  // Unique Attempt ID to cleanly isolate attempts and prevent cross-attempt collisions
+  const [attemptId, setAttemptId] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem(QUIZ_STORAGE_ATTEMPT_KEY);
+      if (stored) return stored;
+      const initialId = 'attempt_' + Date.now();
+      localStorage.setItem(QUIZ_STORAGE_ATTEMPT_KEY, initialId);
+      return initialId;
+    } catch {
+      return 'attempt_' + Date.now();
+    }
+  });
+
+  // Active timers references to guarantee cancellation on complete reset
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const activeTopic = TOPIC_REGISTRY[progressManager.getActiveTopicId()] || TOPIC_REGISTRY['dll'];
+
+  // Gate quiz timer and Question 1 behind explicit "Start Quiz" button:
+  // If quiz is already submitted or has existing recorded answers, hasStarted defaults to true to preserve attempt resume.
+  const [hasStarted, setHasStarted] = useState<boolean>(() => {
+    try {
+      if (isSubmitted) return true;
+      const stored = localStorage.getItem(QUIZ_STORAGE_ANSWERS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Object.keys(parsed).length > 0) return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  const handleStartQuiz = () => {
+    soundManager.playPrimaryClick();
+    setHasStarted(true);
+    setTimeLeft(QUESTION_TIME_LIMIT_SECONDS);
+    isSubmittingRef.current = false;
+  };
+
+  const handleRestartQuiz = () => {
+    soundManager.playClick();
+
+    // 1. Invalidate and clear all active timers and pending auto-advance callbacks immediately
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    if (intervalTimerRef.current) {
+      clearInterval(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
+
+    // 2. Generate a fresh attempt ID
+    const newAttemptId = 'attempt_' + Date.now();
+    try {
+      localStorage.removeItem(QUIZ_STORAGE_ANSWERS_KEY);
+      localStorage.removeItem(QUIZ_STORAGE_SUBMITTED_KEY);
+      localStorage.setItem(QUIZ_STORAGE_ATTEMPT_KEY, newAttemptId);
+    } catch {
+      // Ignore storage errors
+    }
+
+    // 3. Clear progressManager scores for this topic so reattempt starts from a blank ledger
+    progressManager.resetQuizAttempt(activeTopic?.id || 'dll');
+
+    // 4. Reset entire quiz state collection and attempt-level states
+    setAttemptId(newAttemptId);
+    setStudentAnswers({});
+    setIsSubmitted(false);
+    setHasStarted(false);
+    setCurrentQuestionIndex(0);
+    setPendingSelection(null);
+    setTimeLeft(QUESTION_TIME_LIMIT_SECONDS);
+    isSubmittingRef.current = false;
+  };
+
   // Navigation within Quiz (0-indexed current question)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [pendingSelection, setPendingSelection] = useState<number | null>(null);
@@ -278,41 +361,20 @@ export const QuizView: React.FC<QuizViewProps> = ({
     }
   }, [studentAnswers]);
 
-  // =========================================================================
-  // PER-QUESTION TIMER ENGINE (20 Seconds Per Question)
-  // =========================================================================
-  useEffect(() => {
-    if (isSubmitted || isCurrentQuestionAnswered) {
-      setTimeLeft(0);
-      return;
-    }
-
-    // Reset countdown to 20 seconds for this question
-    setTimeLeft(QUESTION_TIME_LIMIT_SECONDS);
-    isSubmittingRef.current = false;
-
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleQuestionTimeout(currentQuestion.id);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [currentQuestion.id, isCurrentQuestionAnswered, isSubmitted]);
-
   // Handle Timeout when 20s expires: 0 points awarded, no penalty, recorded as unanswered
   const handleQuestionTimeout = (qId: number) => {
     if (isSubmittingRef.current || studentAnswers[qId] !== undefined) return;
     isSubmittingRef.current = true;
 
+    // Immediately stop and clear any active interval timer
+    if (intervalTimerRef.current) {
+      clearInterval(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
+    setTimeLeft(0);
     soundManager.playError();
-    const q = QUIZ_QUESTIONS.find((item) => item.id === qId) || currentQuestion;
 
+    const q = QUIZ_QUESTIONS.find((item) => item.id === qId) || currentQuestion;
     const timeoutRecord: StudentAnswerRecord = {
       questionId: q.id,
       selectedOptionIndex: -1,
@@ -322,25 +384,70 @@ export const QuizView: React.FC<QuizViewProps> = ({
       isCorrect: false,
       isTimeout: true,
     };
-
     setStudentAnswers((prev) => ({
       ...prev,
       [q.id]: timeoutRecord,
     }));
 
-    // Record timeout in progressManager: scoreDelta = 0, no penalty!
-    progressManager.recordQuizQuestionAnswer('dll', q.id, -1, false, true);
-
-    // Auto-advance to next question if not the final question
-    setTimeout(() => {
-      if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
-        setCurrentQuestionIndex((curr) => curr + 1);
-      }
-    }, 1200);
+    // Record timeout in progressManager and pointsManager: scoreDelta = 0, no penalty!
+    progressManager.recordQuizQuestionAnswer(activeTopic?.id || 'dll', q.id, -1, false, true, attemptId);
+    pointsManager.recordEvent('QUIZ_ANSWER', String(q.id), {
+      questionId: q.id,
+      selectedIndex: -1,
+      attemptId,
+    });
   };
 
+  // =========================================================================
+  // PER-QUESTION TIMER ENGINE (20 Seconds Per Question)
+  // Runs strictly while question is active, student clicked "Start Quiz", and not resolved
+  // =========================================================================
+  useEffect(() => {
+    // If not started, already submitted, or current question is answered/timed-out, stop timer
+    if (!hasStarted || isSubmitted || isCurrentQuestionAnswered) {
+      if (intervalTimerRef.current) {
+        clearInterval(intervalTimerRef.current);
+        intervalTimerRef.current = null;
+      }
+      setTimeLeft(0);
+      return;
+    }
+
+    // Reset countdown to 20 seconds for this active question
+    setTimeLeft(QUESTION_TIME_LIMIT_SECONDS);
+    isSubmittingRef.current = false;
+
+    if (intervalTimerRef.current) {
+      clearInterval(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
+
+    const currentQId = currentQuestion.id;
+    intervalTimerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (intervalTimerRef.current) {
+            clearInterval(intervalTimerRef.current);
+            intervalTimerRef.current = null;
+          }
+          // Safely mark this specific question as Timed Out
+          handleQuestionTimeout(currentQId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (intervalTimerRef.current) {
+        clearInterval(intervalTimerRef.current);
+        intervalTimerRef.current = null;
+      }
+    };
+  }, [hasStarted, currentQuestion.id, isCurrentQuestionAnswered, isSubmitted, attemptId]);
+
   // Calculate score deterministically according to exact scoring rules
-  // Correct: +3, Incorrect: -1, Timeout: 0
+  // Correct: +3, Incorrect: -1, Timeout: 0 (uncapped deductions per Requirement 3)
   const { score, totalQuestions, percentage, correctCount, incorrectCount, timeoutCount, rawNetScore } = useMemo(() => {
     let correct = 0;
     let incorrect = 0;
@@ -357,7 +464,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
     const total = QUIZ_QUESTIONS.length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-    const rawNet = Math.max(0, correct * 3 - incorrect * 1);
+    const rawNet = correct * 3 - incorrect * 1;
 
     return {
       score: correct,
@@ -403,8 +510,13 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
     setStudentAnswers(updatedAnswers);
 
-    // Record scoring event in progressManager (+3 for correct, -1 for incorrect)
-    progressManager.recordQuizQuestionAnswer('dll', q.id, pendingSelection, isCorrect, false);
+    // Record scoring event in progressManager and pointsManager (+3 for correct, -1 for incorrect)
+    progressManager.recordQuizQuestionAnswer(activeTopic?.id || 'dll', q.id, pendingSelection, isCorrect, false, attemptId);
+    pointsManager.recordEvent('QUIZ_ANSWER', String(q.id), {
+      questionId: q.id,
+      selectedIndex: pendingSelection,
+      attemptId,
+    });
 
     if (isCorrect) {
       soundManager.playQuizCorrect();
@@ -431,7 +543,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
       };
       updatedAnswers[q.id] = newRecord;
       setStudentAnswers(updatedAnswers);
-      progressManager.recordQuizQuestionAnswer('dll', q.id, pendingSelection, isCorrect, false);
+      progressManager.recordQuizQuestionAnswer(activeTopic?.id || 'dll', q.id, pendingSelection, isCorrect, false, attemptId);
+      pointsManager.recordEvent('QUIZ_ANSWER', String(q.id), {
+        questionId: q.id,
+        selectedIndex: pendingSelection,
+        attemptId,
+      });
     }
 
     // Fill any skipped questions as timed out (0 points)
@@ -446,7 +563,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
           isCorrect: false,
           isTimeout: true,
         };
-        progressManager.recordQuizQuestionAnswer('dll', q.id, -1, false, true);
+        progressManager.recordQuizQuestionAnswer(activeTopic?.id || 'dll', q.id, -1, false, true, attemptId);
+        pointsManager.recordEvent('QUIZ_ANSWER', String(q.id), {
+          questionId: q.id,
+          selectedIndex: -1,
+          attemptId,
+        });
       }
     });
 
@@ -496,6 +618,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-mono font-bold border transition-all ${
                   isCurrentQuestionAnswered
                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                    : !hasStarted
+                    ? 'bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
                     : timeLeft <= 5
                     ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 animate-pulse'
                     : 'bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
@@ -507,6 +631,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     ? currentAnswerRecord?.isTimeout
                       ? 'Time Expired'
                       : 'Answered'
+                    : !hasStarted
+                    ? 'Timer Stopped (Click Start Quiz)'
                     : `Time Left: ${timeLeft}s`}
                 </span>
               </div>
@@ -515,6 +641,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
               10 Questions (+3 / -1)
             </span>
+
           </div>
         </div>
 
@@ -524,6 +651,26 @@ export const QuizView: React.FC<QuizViewProps> = ({
         <p className="text-sm text-slate-600 dark:text-slate-300 max-w-2xl mt-1 leading-relaxed">
           Test your understanding with 20 seconds per question. Correct answers award +3 raw points, incorrect answers deduct 1 raw point, and timed-out questions award 0 points.
         </p>
+
+        {/* Clear Scoring Rules Banner (Requirement 4.1) */}
+        <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-slate-50 dark:bg-[#0B1120] border border-slate-200/90 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Award className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Scoring Rules:
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono font-bold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+              <span>Correct answer:</span>
+              <span className="font-extrabold">+3 pts</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
+              <span>Wrong answer:</span>
+              <span className="font-extrabold">-1 pts</span>
+            </span>
+          </div>
+        </div>
 
         {/* Question Index Tabs / Progress Tracker */}
         <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -575,11 +722,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     if (isSubmitted) {
                       const el = document.getElementById(`quiz-review-card-${q.id}`);
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    } else {
-                      setCurrentQuestionIndex(idx);
                     }
                   }}
-                  className={`py-2 text-center text-xs font-mono rounded-xl border transition-all cursor-pointer ${pillStyle}`}
+                  className={`py-2 text-center text-xs font-mono rounded-xl border transition-all ${isSubmitted ? 'cursor-pointer' : 'cursor-default'} ${pillStyle}`}
                   title={`Question ${idx + 1}`}
                 >
                   <span>Q{idx + 1}</span>
@@ -596,7 +741,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
       </div>
 
       {/* =========================================================================
-          QUIZ COMPLETION VIEW (WHEN SUBMITTED) — NO RESET / RETAKE BUTTONS
+          QUIZ COMPLETION VIEW (WHEN SUBMITTED) — RETAKE ALLOWED
           ========================================================================= */}
       {isSubmitted ? (
         <div className="space-y-8">
@@ -659,8 +804,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
               </div>
             </div>
 
-            {/* Navigation Actions (NO RETAKE OR RESET BUTTONS) */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mt-4 w-full max-w-md mx-auto">
+            {/* Navigation Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mt-4 w-full max-w-lg mx-auto">
+
               <button
                 id="btn-quiz-view-progress"
                 type="button"
@@ -684,7 +830,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-white dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 <Home className="w-4 h-4" />
-                <span>Back to Overview</span>
+                <span>Overview</span>
               </button>
             </div>
           </div>
@@ -725,9 +871,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       <div className="flex items-center gap-2.5">
                         <span className="px-3 py-1 bg-primary-gradient text-white rounded-full text-xs font-bold font-mono tracking-wide shadow-xs">
                           Question {questionNumberStr}
-                        </span>
-                        <span className="text-xs font-bold text-[#2563EB] dark:text-blue-300 font-mono tracking-wider">
-                          {q.techniqueCode}
                         </span>
                       </div>
 
@@ -823,9 +966,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 <span className="px-2.5 py-1 bg-[#2563EB] dark:bg-blue-600 text-white rounded-lg text-xs font-bold font-mono shadow-xs">
                   Question {currentQuestionIndex + 1 < 10 ? `0${currentQuestionIndex + 1}` : currentQuestionIndex + 1} of {totalQuestions}
                 </span>
-                <span className="text-xs font-semibold text-[#2563EB] dark:text-blue-300 font-mono">
-                  {currentQuestion.techniqueCode}
-                </span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -846,6 +986,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
                       <span>Incorrect (-1 pt)</span>
                     </span>
                   )
+                ) : !hasStarted ? (
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl font-mono text-xs font-bold border bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-300 border-blue-200 dark:border-blue-900/60">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>20s (Paused)</span>
+                  </div>
                 ) : (
                   <div
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-mono text-xs font-bold border transition-colors ${
@@ -860,6 +1005,37 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Start Quiz Callout Banner in Question 1 Area */}
+            {!hasStarted && (
+              <div
+                id="quiz-start-callout"
+                className="mb-6 p-4 sm:p-5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 flex flex-col sm:flex-row items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Play className="w-5 h-5 fill-current" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Assessment Ready — Question 1
+                    </h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      The 20-second per-question countdown begins when you click Start Quiz.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  id="btn-start-quiz"
+                  type="button"
+                  onClick={handleStartQuiz}
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary-gradient text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-primary-gradient transition-all flex items-center justify-center gap-2 cursor-pointer hover:brightness-110 active:scale-98 shrink-0"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Start Quiz</span>
+                </button>
+              </div>
+            )}
 
             {/* Question Statement */}
             <p className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-6 leading-snug break-words">
@@ -891,9 +1067,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   <button
                     key={optIdx}
                     id={`quiz-q${currentQuestion.id}-opt${optIdx}`}
-                    onClick={() => handleSelectOption(optIdx)}
-                    disabled={isCurrentQuestionAnswered}
-                    className={`w-full p-4 text-left text-sm font-sans rounded-2xl border transition-all flex items-start gap-3.5 cursor-pointer ${optStyle}`}
+                    onClick={() => {
+                      if (!hasStarted) return;
+                      handleSelectOption(optIdx);
+                    }}
+                    disabled={!hasStarted || isCurrentQuestionAnswered}
+                    className={`w-full p-4 text-left text-sm font-sans rounded-2xl border transition-all flex items-start gap-3.5 ${!hasStarted || isCurrentQuestionAnswered ? 'cursor-not-allowed' : 'cursor-pointer'} ${optStyle}`}
                   >
                     <span
                       className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-xs font-bold font-mono ${
@@ -916,23 +1095,13 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
             {/* Action Bar */}
             <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-              <button
-                disabled={currentQuestionIndex === 0}
-                onClick={() => {
-                  soundManager.playNav();
-                  setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
-                }}
-                className={`px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all ${
-                  currentQuestionIndex === 0
-                    ? 'opacity-40 cursor-not-allowed pointer-events-none'
-                    : 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Previous</span>
-              </button>
+              {/* Sequential question progression indicator (previous button removed per specification) */}
+              <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                <ListOrdered className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
+                <span>Question {currentQuestionIndex + 1} of {totalQuestions}</span>
+              </div>
 
-              {!isCurrentQuestionAnswered ? (
+              {!hasStarted ? null : !isCurrentQuestionAnswered ? (
                 currentQuestionIndex < totalQuestions - 1 ? (
                   <button
                     id="btn-submit-answer"

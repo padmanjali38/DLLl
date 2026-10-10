@@ -4,14 +4,13 @@ import { DLLLevelSelectScreen } from './game/DLLLevelSelectScreen';
 import { DLLTaskSelectScreen } from './game/DLLTaskSelectScreen';
 import { DLLInteractiveTaskWorkspace } from './game/DLLInteractiveTaskWorkspace';
 import { progressManager } from '../utils/progressManager';
+import { pointsManager } from '../utils/pointsManager';
 import { soundManager } from '../utils/audio';
-import { ResetProgressModal } from './ResetProgressModal';
 
 interface DLLMasterGameProps {
   onOpenTheory?: () => void;
   onOpenQuiz?: () => void;
   resetTrigger?: number;
-  onResetRequest?: () => void;
 }
 
 const STORAGE_COMPLETED_TASKS_KEY = 'dll_master_game_completed_tasks_v4';
@@ -20,7 +19,6 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
   onOpenTheory,
   onOpenQuiz,
   resetTrigger,
-  onResetRequest,
 }) => {
   // Screen views: 'levels' (Screen 1) | 'tasks' (Screen 2) | 'workspace' (Screen 3)
   const [currentScreen, setCurrentScreen] = useState<'levels' | 'tasks' | 'workspace'>('levels');
@@ -41,9 +39,6 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
       return [];
     }
   });
-
-  // Modal confirmation state
-  const [showConfirmResetModal, setShowConfirmResetModal] = useState<boolean>(false);
 
   // Key to force clean remount of the workspace
   const [workspaceKey, setWorkspaceKey] = useState<number>(0);
@@ -91,30 +86,6 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
     setTotalXP(progressManager.getTotalScore());
   };
 
-  // Perform full game reset upon confirmation
-  const handlePerformGlobalReset = () => {
-    try {
-      localStorage.removeItem(STORAGE_COMPLETED_TASKS_KEY);
-      localStorage.removeItem('dsa_game_completed_tasks_v1');
-      localStorage.removeItem('hash_quest_quiz_answers_v3');
-      localStorage.removeItem('hash_quest_quiz_submitted_v3');
-    } catch {
-      // ignore
-    }
-    progressManager.resetProgress();
-    setCompletedTaskIds([]);
-    setTotalXP(0);
-    setCurrentScreen('levels');
-    setSelectedLevel(DLL_LEVELS[0]);
-    setSelectedTask(DLL_LEVELS[0].tasks[0]);
-    setWorkspaceKey((k) => k + 1);
-    setShowConfirmResetModal(false);
-  };
-
-  const handleOpenResetDialog = () => {
-    setShowConfirmResetModal(true);
-  };
-
   // ---------------------------------------------------------------------------
   // Navigation Handlers
   // ---------------------------------------------------------------------------
@@ -150,6 +121,7 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
 
       // Award +6 raw points in persistent scoring system
       progressManager.recordGameTaskCompleted('dll', taskId);
+      pointsManager.recordEvent('GAME_TASK_COMPLETED', taskId, { taskId });
       progressManager.addScore(xpAwarded);
       refreshXP();
 

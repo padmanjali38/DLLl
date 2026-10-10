@@ -3,7 +3,6 @@ import {
   Menu,
   Volume2,
   VolumeX,
-  RotateCcw,
   Flame,
   Moon,
   Sun,
@@ -23,8 +22,8 @@ export interface TopHeaderProps {
   onToggleMute: () => void;
   speed?: number;
   onChangeSpeed?: (newSpeed: number) => void;
-  onResetLevel: () => void;
-  onResetAllProgress: () => void;
+  onResetLevel?: () => void;
+  onResetAllProgress?: () => void;
   onToggleMobileSidebar: () => void;
   onOpenHelpModal?: () => void;
   onOpenSettingsModal?: () => void;
@@ -42,7 +41,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleMute,
   speed,
   onChangeSpeed,
-  onResetLevel,
   onResetAllProgress,
   onToggleMobileSidebar,
   isDesktopSidebarOpen = true,
@@ -190,6 +188,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <Volume2 className="w-4 h-4 text-[#2563EB] dark:text-[#60A5FA]" />
             )}
           </button>
+
+
         </div>
       </div>
     </header>

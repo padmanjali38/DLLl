@@ -20,15 +20,15 @@ const DB_FILE = path.resolve(DATA_DIR, 'competition_db.json');
 // Answer key for quiz validation
 const QUIZ_ANSWER_KEY: Record<number, number> = {
   1: 1,
-  2: 0,
-  3: 2,
+  2: 1,
+  3: 1,
   4: 1,
-  5: 2,
+  5: 0,
   6: 1,
-  7: 1,
+  7: 0,
   8: 1,
-  9: 1,
-  10: 0,
+  9: 0,
+  10: 1,
 };
 
 // Activity metadata mappings
@@ -53,6 +53,24 @@ const VIDEO_TITLES: Record<string, string> = {
 };
 
 const GAME_TASK_TITLES: Record<string, string> = {
+  'task-1-1': 'Creating a Node',
+  'task-1-2': 'Build the DLL',
+  'task-1-3': 'Traversal in DLL',
+  'task-2-1': 'Insert at Beginning',
+  'task-2-2': 'Insert at End',
+  'task-2-3': 'Insert at Any Position',
+  'task-3-1': 'Delete from Beginning',
+  'task-3-2': 'Delete from End',
+  'task-3-3': 'Delete from Any Position',
+  'dll-task-1-1': 'DLL Node Anatomy & Fields',
+  'dll-task-1-2': 'Allocate Node on Dynamic Heap',
+  'dll-task-1-3': 'Single Node Boundary State',
+  'dll-task-2-1': 'Insert at Head (Prepend)',
+  'dll-task-2-2': 'Insert at Tail (Append)',
+  'dll-task-2-3': 'Insert at Middle (4-Pointer Wire)',
+  'dll-task-3-1': 'Delete Head Boundary Node',
+  'dll-task-3-2': 'Delete Tail Boundary Node',
+  'dll-task-3-3': 'Delete Middle Node (Bypass)',
   'l1-t1': 'Allocate & Initialize Head Node',
   'l1-t2': 'Insert Second Node at Head',
   'l1-t3': 'Head Pointer Reassignment & Boundary Link',
@@ -62,12 +80,6 @@ const GAME_TASK_TITLES: Record<string, string> = {
   'l3-t1': 'Forward Traversal to Tail',
   'l3-t2': 'Backward Traversal to Head',
   'l3-t3': 'Bi-Directional Search & Verification',
-  'l4-t1': 'Locate Predecessor & Successor Nodes',
-  'l4-t2': 'Rewire Predecessor and Successor Pointers',
-  'l4-t3': 'Complete 4-Pointer Middle Node Insertion',
-  'l5-t1': 'Remove Head Node & Update Boundary',
-  'l5-t2': 'Remove Tail Node & Update Boundary',
-  'l5-t3': 'Bypass & Free Intermediate Middle Node',
 };
 
 export interface ParticipantRecord {
@@ -113,53 +125,53 @@ function getInitialSeedData(): DatabaseSchema {
       userId: 'student-alex-01',
       studentName: 'Alex Chen',
       avatarSeed: 'alex',
-      theoryPoints: 18,
-      videoPoints: 6,
-      gamePoints: 36,
-      quizPoints: 7,
+      theoryPoints: 0,
+      videoPoints: 16,
+      gamePoints: 54,
+      quizPoints: 20,
       penaltyPoints: -3,
-      totalPoints: 64,
+      totalPoints: 87,
       completedModules: ['fn-01-basics', 'fn-02-modulo', 'fn-03-table', 'fn-04-lifecycle', 'fn-05-collision', 'fn-06-chaining', 'fn-07-linear', 'fn-08-quadratic', 'fn-09-double'],
       completedVideos: ['lesson-01', 'lesson-02'],
-      completedTasks: ['l1-t1', 'l1-t2', 'l1-t3', 'l2-t1', 'l2-t2', 'l2-t3', 'l3-t1', 'l3-t2', 'l4-t1'],
+      completedTasks: ['task-1-1', 'task-1-2', 'task-1-3', 'task-2-1', 'task-2-2', 'task-2-3', 'task-3-1', 'task-3-2', 'task-3-3'],
       quizAnswers: {
         1: { selectedIndex: 1, isCorrect: true, timestamp: now - 3600000 },
-        2: { selectedIndex: 0, isCorrect: true, timestamp: now - 3500000 },
-        3: { selectedIndex: 2, isCorrect: true, timestamp: now - 3400000 },
+        2: { selectedIndex: 1, isCorrect: true, timestamp: now - 3500000 },
+        3: { selectedIndex: 1, isCorrect: true, timestamp: now - 3400000 },
         4: { selectedIndex: 1, isCorrect: true, timestamp: now - 3300000 },
-        5: { selectedIndex: 2, isCorrect: true, timestamp: now - 3200000 },
+        5: { selectedIndex: 0, isCorrect: true, timestamp: now - 3200000 },
         6: { selectedIndex: 1, isCorrect: true, timestamp: now - 3100000 },
-        7: { selectedIndex: 1, isCorrect: true, timestamp: now - 3000000 },
+        7: { selectedIndex: 0, isCorrect: true, timestamp: now - 3000000 },
         8: { selectedIndex: 0, isCorrect: false, timestamp: now - 2900000 },
       },
-      hintsUsed: ['l2-t2-h1'],
-      guidedStepsUsed: ['l4-t1-s1'],
+      hintsUsed: ['task-2-2-h1'],
+      guidedStepsUsed: ['task-2-1-s1'],
       lastActive: now - 3600000,
     },
     {
       userId: 'student-priya-02',
       studentName: 'Priya Sharma',
       avatarSeed: 'priya',
-      theoryPoints: 20,
-      videoPoints: 6,
-      gamePoints: 28,
-      quizPoints: 8,
+      theoryPoints: 0,
+      videoPoints: 16,
+      gamePoints: 42,
+      quizPoints: 24,
       penaltyPoints: -1,
-      totalPoints: 61,
+      totalPoints: 81,
       completedModules: ['fn-01-basics', 'fn-02-modulo', 'fn-03-table', 'fn-04-lifecycle', 'fn-05-collision', 'fn-06-chaining', 'fn-07-linear', 'fn-08-quadratic', 'fn-09-double', 'fn-10-cluster'],
       completedVideos: ['lesson-01', 'lesson-02'],
-      completedTasks: ['l1-t1', 'l1-t2', 'l1-t3', 'l2-t1', 'l2-t2', 'l2-t3', 'l3-t1'],
+      completedTasks: ['task-1-1', 'task-1-2', 'task-1-3', 'task-2-1', 'task-2-2', 'task-2-3', 'task-3-1'],
       quizAnswers: {
         1: { selectedIndex: 1, isCorrect: true, timestamp: now - 7200000 },
-        2: { selectedIndex: 0, isCorrect: true, timestamp: now - 7100000 },
-        3: { selectedIndex: 2, isCorrect: true, timestamp: now - 7000000 },
+        2: { selectedIndex: 1, isCorrect: true, timestamp: now - 7100000 },
+        3: { selectedIndex: 1, isCorrect: true, timestamp: now - 7000000 },
         4: { selectedIndex: 1, isCorrect: true, timestamp: now - 6900000 },
-        5: { selectedIndex: 2, isCorrect: true, timestamp: now - 6800000 },
+        5: { selectedIndex: 0, isCorrect: true, timestamp: now - 6800000 },
         6: { selectedIndex: 1, isCorrect: true, timestamp: now - 6700000 },
-        7: { selectedIndex: 1, isCorrect: true, timestamp: now - 6600000 },
+        7: { selectedIndex: 0, isCorrect: true, timestamp: now - 6600000 },
         8: { selectedIndex: 1, isCorrect: true, timestamp: now - 6500000 },
       },
-      hintsUsed: ['l1-t3-h1'],
+      hintsUsed: ['task-1-3-h1'],
       guidedStepsUsed: [],
       lastActive: now - 7200000,
     },
@@ -167,72 +179,72 @@ function getInitialSeedData(): DatabaseSchema {
       userId: 'student-marcus-03',
       studentName: 'Marcus Vance',
       avatarSeed: 'marcus',
-      theoryPoints: 14,
-      videoPoints: 6,
-      gamePoints: 32,
-      quizPoints: 5,
+      theoryPoints: 0,
+      videoPoints: 16,
+      gamePoints: 48,
+      quizPoints: 14,
       penaltyPoints: -4,
-      totalPoints: 53,
+      totalPoints: 74,
       completedModules: ['fn-01-basics', 'fn-02-modulo', 'fn-03-table', 'fn-04-lifecycle', 'fn-05-collision', 'fn-06-chaining', 'fn-07-linear'],
       completedVideos: ['lesson-01', 'lesson-02'],
-      completedTasks: ['l1-t1', 'l1-t2', 'l1-t3', 'l2-t1', 'l2-t2', 'l2-t3', 'l3-t1', 'l3-t2'],
+      completedTasks: ['task-1-1', 'task-1-2', 'task-1-3', 'task-2-1', 'task-2-2', 'task-2-3', 'task-3-1', 'task-3-2'],
       quizAnswers: {
         1: { selectedIndex: 1, isCorrect: true, timestamp: now - 10800000 },
-        2: { selectedIndex: 0, isCorrect: true, timestamp: now - 10700000 },
-        3: { selectedIndex: 2, isCorrect: true, timestamp: now - 10600000 },
+        2: { selectedIndex: 1, isCorrect: true, timestamp: now - 10700000 },
+        3: { selectedIndex: 1, isCorrect: true, timestamp: now - 10600000 },
         4: { selectedIndex: 1, isCorrect: true, timestamp: now - 10500000 },
         5: { selectedIndex: 1, isCorrect: false, timestamp: now - 10400000 },
         6: { selectedIndex: 1, isCorrect: true, timestamp: now - 10300000 },
       },
-      hintsUsed: ['l2-t1-h1', 'l3-t2-h1'],
-      guidedStepsUsed: ['l3-t2-s1'],
+      hintsUsed: ['task-2-1-h1', 'task-3-2-h1'],
+      guidedStepsUsed: ['task-3-2-s1'],
       lastActive: now - 10800000,
     },
     {
       userId: 'student-elena-04',
       studentName: 'Elena Rostova',
       avatarSeed: 'elena',
-      theoryPoints: 16,
-      videoPoints: 3,
-      gamePoints: 24,
-      quizPoints: 6,
+      theoryPoints: 0,
+      videoPoints: 8,
+      gamePoints: 36,
+      quizPoints: 18,
       penaltyPoints: -2,
-      totalPoints: 47,
+      totalPoints: 60,
       completedModules: ['fn-01-basics', 'fn-02-modulo', 'fn-03-table', 'fn-04-lifecycle', 'fn-05-collision', 'fn-06-chaining', 'fn-07-linear', 'fn-08-quadratic'],
       completedVideos: ['lesson-01'],
-      completedTasks: ['l1-t1', 'l1-t2', 'l1-t3', 'l2-t1', 'l2-t2', 'l2-t3'],
+      completedTasks: ['task-1-1', 'task-1-2', 'task-1-3', 'task-2-1', 'task-2-2', 'task-2-3'],
       quizAnswers: {
         1: { selectedIndex: 1, isCorrect: true, timestamp: now - 14400000 },
-        2: { selectedIndex: 0, isCorrect: true, timestamp: now - 14300000 },
-        3: { selectedIndex: 2, isCorrect: true, timestamp: now - 14200000 },
+        2: { selectedIndex: 1, isCorrect: true, timestamp: now - 14300000 },
+        3: { selectedIndex: 1, isCorrect: true, timestamp: now - 14200000 },
         4: { selectedIndex: 1, isCorrect: true, timestamp: now - 14100000 },
-        5: { selectedIndex: 2, isCorrect: true, timestamp: now - 14000000 },
+        5: { selectedIndex: 0, isCorrect: true, timestamp: now - 14000000 },
         6: { selectedIndex: 1, isCorrect: true, timestamp: now - 13900000 },
       },
       hintsUsed: [],
-      guidedStepsUsed: ['l2-t3-s1'],
+      guidedStepsUsed: ['task-2-3-s1'],
       lastActive: now - 14400000,
     },
     {
       userId: 'student-devon-05',
       studentName: 'Devon Lee',
       avatarSeed: 'devon',
-      theoryPoints: 10,
-      videoPoints: 3,
-      gamePoints: 20,
-      quizPoints: 4,
+      theoryPoints: 0,
+      videoPoints: 8,
+      gamePoints: 30,
+      quizPoints: 12,
       penaltyPoints: -1,
-      totalPoints: 36,
+      totalPoints: 49,
       completedModules: ['fn-01-basics', 'fn-02-modulo', 'fn-03-table', 'fn-04-lifecycle', 'fn-05-collision'],
       completedVideos: ['lesson-01'],
-      completedTasks: ['l1-t1', 'l1-t2', 'l1-t3', 'l2-t1', 'l2-t2'],
+      completedTasks: ['task-1-1', 'task-1-2', 'task-1-3', 'task-2-1', 'task-2-2'],
       quizAnswers: {
         1: { selectedIndex: 1, isCorrect: true, timestamp: now - 18000000 },
-        2: { selectedIndex: 0, isCorrect: true, timestamp: now - 17900000 },
-        3: { selectedIndex: 2, isCorrect: true, timestamp: now - 17800000 },
+        2: { selectedIndex: 1, isCorrect: true, timestamp: now - 17900000 },
+        3: { selectedIndex: 1, isCorrect: true, timestamp: now - 17800000 },
         4: { selectedIndex: 1, isCorrect: true, timestamp: now - 17700000 },
       },
-      hintsUsed: ['l1-t2-h1'],
+      hintsUsed: ['task-1-2-h1'],
       guidedStepsUsed: [],
       lastActive: now - 18000000,
     },
@@ -249,9 +261,9 @@ function getInitialSeedData(): DatabaseSchema {
       userId: 'student-alex-01',
       studentName: 'Alex Chen',
       eventType: 'GAME',
-      activityName: 'Locate Predecessor & Successor Nodes',
+      activityName: 'Insert at Beginning',
       category: 'Games',
-      points: 4,
+      points: 6,
       timestamp: now - 3600000,
     },
     {
@@ -261,7 +273,7 @@ function getInitialSeedData(): DatabaseSchema {
       eventType: 'THEORY',
       activityName: 'Bi-Directional Search Optimization',
       category: 'Theory',
-      points: 2,
+      points: 0,
       timestamp: now - 6600000,
     },
     {
@@ -269,9 +281,9 @@ function getInitialSeedData(): DatabaseSchema {
       userId: 'student-alex-01',
       studentName: 'Alex Chen',
       eventType: 'QUIZ',
-      activityName: 'Quiz Question #7',
+      activityName: 'Quiz Question #7: Correct Answer',
       category: 'Quiz',
-      points: 1,
+      points: 3,
       timestamp: now - 3000000,
     },
     {
@@ -279,7 +291,7 @@ function getInitialSeedData(): DatabaseSchema {
       userId: 'student-marcus-03',
       studentName: 'Marcus Vance',
       eventType: 'GUIDED_STEP',
-      activityName: 'Guided Step Assistance: Backward Traversal',
+      activityName: 'Guided Step Assistance: Delete from End',
       category: 'Penalties',
       points: -2,
       timestamp: now - 10300000,
@@ -291,7 +303,7 @@ function getInitialSeedData(): DatabaseSchema {
       eventType: 'VIDEO',
       activityName: 'What is DLL? & DLL Insertion',
       category: 'Visualization',
-      points: 3,
+      points: 8,
       timestamp: now - 14400000,
     },
   ];
@@ -328,24 +340,28 @@ let db = loadDatabase();
 
 // Re-calculate totals safely
 function recalculateParticipantScores(p: ParticipantRecord) {
-  p.theoryPoints = p.completedModules.length * 2;
-  p.videoPoints = p.completedVideos.length * 3;
-  p.gamePoints = p.completedTasks.length * 4;
+  p.theoryPoints = 0; // Theory has 0 competition points
+  p.videoPoints = Math.min(16, p.completedVideos.length * 8); // 2 * 8 = 16 max
+  p.gamePoints = Math.min(54, p.completedTasks.length * 6); // 9 * 6 = 54 max
 
   let qPts = 0;
   for (const qIdStr in p.quizAnswers) {
     const ans = p.quizAnswers[Number(qIdStr)];
     if (ans) {
-      qPts += ans.isCorrect ? 1 : -1;
+      if (ans.selectedIndex === -1) {
+        // timeout awards 0
+      } else {
+        qPts += ans.isCorrect ? 3 : -1;
+      }
     }
   }
-  p.quizPoints = qPts;
+  p.quizPoints = Math.max(0, Math.min(30, qPts)); // 30 max
 
   const hintDeductions = p.hintsUsed.length * -1;
   const guidedDeductions = p.guidedStepsUsed.length * -2;
   p.penaltyPoints = hintDeductions + guidedDeductions;
 
-  p.totalPoints = p.theoryPoints + p.videoPoints + p.gamePoints + p.quizPoints + p.penaltyPoints;
+  p.totalPoints = Math.min(100, Math.max(0, p.videoPoints + p.gamePoints + p.quizPoints + p.penaltyPoints));
 }
 
 function getOrCreateUser(userId?: string, studentName?: string): ParticipantRecord {
@@ -427,25 +443,25 @@ async function startServer() {
     const theoryDetails = user.completedModules.map((id) => ({
       id,
       title: THEORY_TITLES[id] || id,
-      points: 2,
+      points: 0,
     }));
 
     const videoDetails = user.completedVideos.map((id) => ({
       id,
       title: VIDEO_TITLES[id] || id,
-      points: 3,
+      points: 8,
     }));
 
     const gameDetails = user.completedTasks.map((id) => ({
       id,
       title: GAME_TASK_TITLES[id] || id,
-      points: 4,
+      points: 6,
     }));
 
     const quizDetails = Object.entries(user.quizAnswers).map(([qId, ans]) => ({
       questionId: Number(qId),
       isCorrect: ans.isCorrect,
-      points: ans.isCorrect ? 1 : -1,
+      points: ans.selectedIndex === -1 ? 0 : ans.isCorrect ? 3 : -1,
       timestamp: ans.timestamp,
     }));
 
@@ -553,7 +569,7 @@ async function startServer() {
         isDuplicate = true;
       } else {
         user.completedModules.push(moduleId);
-        pointsAwarded = 2; // +2 once per unique module
+        pointsAwarded = 0; // Theory has 0 competition points (educational progress only)
         category = 'Theory';
         activityName = THEORY_TITLES[moduleId] ? `Theory: ${THEORY_TITLES[moduleId]}` : `Theory Module: ${moduleId}`;
       }
@@ -566,7 +582,7 @@ async function startServer() {
         isDuplicate = true;
       } else {
         user.completedVideos.push(lessonId);
-        pointsAwarded = 3; // +3 once per unique lesson
+        pointsAwarded = 8; // +8 once per unique fully completed video
         category = 'Visualization';
         activityName = VIDEO_TITLES[lessonId] ? `Video: ${VIDEO_TITLES[lessonId]}` : `Video Lesson: ${lessonId}`;
       }
@@ -579,7 +595,7 @@ async function startServer() {
         isDuplicate = true;
       } else {
         user.completedTasks.push(taskId);
-        pointsAwarded = 4; // +4 once per unique task
+        pointsAwarded = 6; // +6 once per unique completed game task (18 pts per 3-task level)
         category = 'Games';
         activityName = GAME_TASK_TITLES[taskId] ? `Game Task: ${GAME_TASK_TITLES[taskId]}` : `Game Task: ${taskId}`;
       }
@@ -617,18 +633,22 @@ async function startServer() {
       if (user.quizAnswers[questionId] && !meta?.forceRetake) {
         isDuplicate = true;
       } else {
+        const isTimeout = selectedIndex === -1;
         const correctIndex = QUIZ_ANSWER_KEY[questionId];
-        const isCorrect = selectedIndex === correctIndex;
+        const isCorrect = !isTimeout && selectedIndex === correctIndex;
         user.quizAnswers[questionId] = {
           selectedIndex,
           isCorrect,
           timestamp: now,
         };
-        pointsAwarded = isCorrect ? 1 : -1; // +1 correct, -1 wrong
+        // +3 pts for correct, -1 pt for wrong, 0 pts for timeout
+        pointsAwarded = isTimeout ? 0 : isCorrect ? 3 : -1;
         category = 'Quiz';
-        activityName = isCorrect
-          ? `Quiz Question #${questionId}: Correct Answer`
-          : `Quiz Question #${questionId}: Incorrect Answer`;
+        activityName = isTimeout
+          ? `Quiz Question #${questionId}: Timed Out (0 pts)`
+          : isCorrect
+          ? `Quiz Question #${questionId}: Correct Answer (+3 pts)`
+          : `Quiz Question #${questionId}: Incorrect Answer (-1 pt)`;
       }
     } else {
       return res.status(400).json({ error: `Unknown eventType: ${eventType}` });

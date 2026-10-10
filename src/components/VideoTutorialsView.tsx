@@ -16,6 +16,7 @@ import {
 import { LessonItem, VIDEO_LESSONS } from '../data/videoLessons';
 import { soundManager } from '../utils/audio';
 import { progressManager } from '../utils/progressManager';
+import { pointsManager } from '../utils/pointsManager';
 
 export const VideoTutorialsView: React.FC = () => {
   const [selectedLesson, setSelectedLesson] = useState<LessonItem>(VIDEO_LESSONS[0]);
@@ -170,18 +171,19 @@ export const VideoTutorialsView: React.FC = () => {
     }
   };
 
-  // Prevent seeking forward via media controls or programmatic tampering
+  // Prevent seeking forward via media controls or programmatic tampering: backward navigation only
   const handleSeeking = () => {
     if (!videoRef.current) return;
-    // If attempting to jump ahead of the furthest continuous watched position
-    if (videoRef.current.currentTime > maxWatchedTimeRef.current + 1) {
+    // Strictly prevent jumping ahead of the furthest continuous watched position
+    if (videoRef.current.currentTime > maxWatchedTimeRef.current + 0.3) {
       videoRef.current.currentTime = maxWatchedTimeRef.current;
       setCurrentTime(maxWatchedTimeRef.current);
     }
   };
 
-  // Speed selector
+  // Speed selector: prevent fast-forwarding (speeds > 1x strictly disallowed)
   const handleChangeSpeed = useCallback((spd: number) => {
+    if (spd > 1) return; // Prevent fast-forwarding
     soundManager.playVideoSpeed();
     setPlaybackSpeed(spd);
     if (videoRef.current) {
@@ -286,6 +288,7 @@ export const VideoTutorialsView: React.FC = () => {
       if (isGenuineCompletion) {
         soundManager.playVideoComplete();
         progressManager.completeVideo(selectedLesson.id, 'dll');
+        pointsManager.recordEvent('VIDEO_LESSON_COMPLETED', selectedLesson.id);
         setCompletedVideos(progressManager.getVideoStats().completedVideos);
       }
     }
@@ -460,13 +463,13 @@ export const VideoTutorialsView: React.FC = () => {
                     </div>
 
                     {isCompleted ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-mono bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50 shadow-2xs">
                         <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                         <span>Completed (+8 pts)</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                        <span>8 pts available</span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-mono bg-blue-50 dark:bg-blue-950/70 text-[#2563EB] dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-2xs">
+                        <span>+8 pts</span>
                       </span>
                     )}
                   </div>
@@ -713,7 +716,7 @@ export const VideoTutorialsView: React.FC = () => {
                 {/* Right Side: Speed + Volume + Exit Fullscreen */}
                 <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
                   <div className="flex items-center gap-0.5 sm:gap-1 bg-black/40 border border-white/10 dark:border-slate-800 rounded-xl p-1 shadow-inner shrink-0">
-                    {[0.5, 1, 1.5, 2].map((spd) => (
+                    {[0.5, 1].map((spd) => (
                       <button
                         key={spd}
                         onClick={() => handleChangeSpeed(spd)}
@@ -818,9 +821,9 @@ export const VideoTutorialsView: React.FC = () => {
 
             {/* SECONDARY CONTROLS: Speed Selector + Volume + Fullscreen */}
             <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3.5 border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-2.5 sm:pt-0">
-              {/* PLAYBACK SPEED SELECTOR */}
+              {/* PLAYBACK SPEED SELECTOR (0.5x, 1x — NO FAST-FORWARDING ALLOWED) */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B1120] border border-slate-200/80 dark:border-slate-800 rounded-xl p-1 shadow-inner shrink-0">
-                {[0.5, 1, 1.5, 2].map((spd) => (
+                {[0.5, 1].map((spd) => (
                   <button
                     key={spd}
                     id={`btn-speed-${spd}x`}

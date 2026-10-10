@@ -223,12 +223,7 @@ export const DLLLevelSelectScreen: React.FC<DLLLevelSelectScreenProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-200/70 dark:border-slate-800/80 text-xs">
-              <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                <Award className="w-3.5 h-3.5 text-amber-500" />
-                <span className="font-bold text-slate-900 dark:text-white">{totalXP} XP</span>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
@@ -267,17 +262,29 @@ export const DLLLevelSelectScreen: React.FC<DLLLevelSelectScreenProps> = ({
               <div className="flex flex-col gap-4">
                 {/* 1. Header Row: Level Number Badge + Status Badge */}
                 <div className="flex items-center justify-between gap-3">
-                  {/* LEVEL NUMBER BADGE */}
-                  <div
-                    className={`w-11 h-11 rounded-2xl border font-mono font-black text-base flex items-center justify-center shadow-xs ${
-                      status === 'completed'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400'
-                        : status === 'locked'
-                        ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
-                        : 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-[#2563EB] dark:text-blue-400'
-                    }`}
-                  >
-                    {config.levelNumber}
+                  {/* LEVEL NUMBER BADGE + POINTS BADGE */}
+                  <div className="flex items-center gap-2 sm:gap-2.5">
+                    <div
+                      className={`w-11 h-11 rounded-2xl border font-mono font-black text-base flex items-center justify-center shadow-xs ${
+                        status === 'completed'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400'
+                          : status === 'locked'
+                          ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
+                          : 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-[#2563EB] dark:text-blue-400'
+                      }`}
+                    >
+                      {config.levelNumber}
+                    </div>
+
+                    <span
+                      className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border shadow-2xs ${
+                        status === 'completed'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/80'
+                          : 'bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-400 border-blue-200 dark:border-blue-800/80'
+                      }`}
+                    >
+                      +18 pts
+                    </span>
                   </div>
 
                   {/* STATUS BADGE */}

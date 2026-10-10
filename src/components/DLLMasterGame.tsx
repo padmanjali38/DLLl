@@ -140,7 +140,7 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
     setCurrentScreen('tasks');
   };
 
-  // Handle task solved
+  // Handle task solved: award +6 raw points in persistent scoring system
   const handleTaskSolved = (taskId: string, xpAwarded: number) => {
     const isNewlyCompleted = !completedTaskIds.includes(taskId);
 
@@ -148,7 +148,8 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
       const updated = [...completedTaskIds, taskId];
       setCompletedTaskIds(updated);
 
-      // Award XP
+      // Award +6 raw points in persistent scoring system
+      progressManager.recordGameTaskCompleted('dll', taskId);
       progressManager.addScore(xpAwarded);
       refreshXP();
 
@@ -182,7 +183,6 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
           completedTaskIds={completedTaskIds}
           totalXP={totalXP}
           onSelectLevel={handleSelectLevel}
-          onResetGame={handleOpenResetDialog}
         />
       )}
 
@@ -211,17 +211,6 @@ export const DLLMasterGame: React.FC<DLLMasterGameProps> = ({
           onNextTask={handleNextTask}
         />
       )}
-
-      {/* Confirmation Dialog for Global Reset */}
-      <ResetProgressModal
-        isOpen={showConfirmResetModal}
-        onClose={() => setShowConfirmResetModal(false)}
-        title="RESET PROGRESS?"
-        confirmationMessage="Are you sure you want to reset your learning progress? All completed theory chapters, watched videos, completed game levels, quiz progress, and mastery progress will be reset."
-        cancelText="EXIT"
-        confirmText="RESET"
-        onConfirm={handlePerformGlobalReset}
-      />
     </div>
   );
 };

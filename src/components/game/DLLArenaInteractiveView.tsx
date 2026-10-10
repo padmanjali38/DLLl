@@ -599,15 +599,6 @@ export const DLLArenaInteractiveView: React.FC<DLLArenaInteractiveViewProps> = (
             <Sparkles className="w-4 h-4" />
             <span>{isGuidedMode ? 'Guided Solve: ACTIVE' : 'Turn On Guided Solve'}</span>
           </button>
-
-          {/* Reset button */}
-          <button
-            onClick={handleResetLevel}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#141f38] border border-[#213459] text-slate-300 hover:text-white hover:bg-[#1b2a4b] text-xs font-mono font-bold transition-all cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
         </div>
       </div>
 

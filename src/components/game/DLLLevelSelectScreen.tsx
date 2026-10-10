@@ -228,18 +228,6 @@ export const DLLLevelSelectScreen: React.FC<DLLLevelSelectScreenProps> = ({
                 <Award className="w-3.5 h-3.5 text-amber-500" />
                 <span className="font-bold text-slate-900 dark:text-white">{totalXP} XP</span>
               </div>
-              {onResetGame && (
-                <button
-                  id="btn-dll-global-reset"
-                  type="button"
-                  onClick={onResetGame}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                  title="Reset progress"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Reset Progress</span>
-                </button>
-              )}
             </div>
           </div>
         </div>

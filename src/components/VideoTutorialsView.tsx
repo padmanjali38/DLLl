@@ -3,7 +3,6 @@ import {
   Play,
   Pause,
   RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
   Maximize,
@@ -37,6 +36,8 @@ export const VideoTutorialsView: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Maximum continuous watched position (prevents seeking forward to cheat completion)
+  const maxWatchedTimeRef = useRef<number>(0);
 
   // Sync completion state from progressManager
   useEffect(() => {
@@ -64,6 +65,7 @@ export const VideoTutorialsView: React.FC = () => {
     setIsLoading(true);
     setCurrentTime(0);
     setDuration(0);
+    maxWatchedTimeRef.current = 0;
 
     video.src = selectedLesson.videoSrc;
     video.load();
@@ -91,6 +93,7 @@ export const VideoTutorialsView: React.FC = () => {
   const handleSelectLesson = useCallback((lesson: LessonItem, autoPlay: boolean = true) => {
     soundManager.playSelect();
     setHasError(false);
+    maxWatchedTimeRef.current = 0;
 
     if (selectedLesson?.id === lesson.id && videoRef.current) {
       if (!isPlaying && autoPlay) {
@@ -102,12 +105,10 @@ export const VideoTutorialsView: React.FC = () => {
     }
 
     setSelectedLesson(lesson);
-    if (autoPlay) {
-      setIsPlaying(true);
-    }
-  }, [selectedLesson, isPlaying]);
+    setIsPlaying(autoPlay);
+  }, [isPlaying, selectedLesson?.id]);
 
-  // Play / Pause toggle
+  // Play / Pause Toggle
   const togglePlay = useCallback(() => {
     if (!videoRef.current || !selectedLesson) return;
 
@@ -142,7 +143,7 @@ export const VideoTutorialsView: React.FC = () => {
     }
   }, [isPlaying, selectedLesson]);
 
-  // 1. REWIND (Left button, moves backward 10s, seeks to 0:00 if < 10s)
+  // BACKWARD NAVIGATION ONLY: Rewind 10s (seeks to 0:00 if < 10s)
   const handleRewind = useCallback(() => {
     if (!videoRef.current) return;
     soundManager.playVideoSeek();
@@ -151,22 +152,31 @@ export const VideoTutorialsView: React.FC = () => {
     setCurrentTime(newTime);
   }, []);
 
-  // 3. FORWARD (Right button, moves forward 10s, never exceeds duration)
-  const handleForward = useCallback(() => {
-    if (!videoRef.current) return;
-    soundManager.playVideoSeek();
-    const maxTime = duration || videoRef.current.duration || 0;
-    const newTime = Math.min(maxTime, videoRef.current.currentTime + 10);
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, [duration]);
-
-  // Timeline scrubber seek
+  // Timeline scrubber seek: ALLOW BACKWARD SEEKING ONLY
+  // Do NOT allow seeking forward or jumping directly to the end.
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    setCurrentTime(time);
-    if (videoRef.current) {
-      videoRef.current.currentTime = time;
+    const targetTime = parseFloat(e.target.value);
+    if (!videoRef.current) return;
+
+    // Allow seeking backward to re-watch previously viewed content
+    if (targetTime <= currentTime) {
+      soundManager.playVideoSeek();
+      setCurrentTime(targetTime);
+      videoRef.current.currentTime = targetTime;
+    } else {
+      // Forward seeking is blocked to prevent cheating completion
+      // Clamp back to current playback position
+      videoRef.current.currentTime = currentTime;
+    }
+  };
+
+  // Prevent seeking forward via media controls or programmatic tampering
+  const handleSeeking = () => {
+    if (!videoRef.current) return;
+    // If attempting to jump ahead of the furthest continuous watched position
+    if (videoRef.current.currentTime > maxWatchedTimeRef.current + 1) {
+      videoRef.current.currentTime = maxWatchedTimeRef.current;
+      setCurrentTime(maxWatchedTimeRef.current);
     }
   };
 
@@ -225,28 +235,6 @@ export const VideoTutorialsView: React.FC = () => {
     }
   }, []);
 
-  // Retry loading current provided video
-  const handleRetry = () => {
-    if (!selectedLesson || !videoRef.current) return;
-    soundManager.playClick();
-    setHasError(false);
-    setIsLoading(true);
-    videoRef.current.src = selectedLesson.videoSrc;
-    videoRef.current.load();
-    const playPromise = videoRef.current.play();
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          setIsPlaying(true);
-          setIsLoading(false);
-        })
-        .catch(() => {
-          setIsPlaying(false);
-          setIsLoading(false);
-        });
-    }
-  };
-
   // HTML5 Video Lifecycle Handlers
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
@@ -276,15 +264,30 @@ export const VideoTutorialsView: React.FC = () => {
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const t = videoRef.current.currentTime;
+      setCurrentTime(t);
+      // Track valid continuous playback (allow forward advancement only via continuous playback)
+      if (t > maxWatchedTimeRef.current && t - maxWatchedTimeRef.current < 2) {
+        maxWatchedTimeRef.current = t;
+      }
     }
   };
 
+  // MANDATORY FULL VIDEO COMPLETION:
+  // Award +8 raw points ONLY upon actual full video finish.
+  // Replaying does not duplicate points.
   const handleEnded = () => {
     setIsPlaying(false);
-    if (selectedLesson) {
-      soundManager.playVideoComplete();
-      progressManager.completeVideo(selectedLesson.id);
+    if (selectedLesson && videoRef.current) {
+      const totalDur = duration || videoRef.current.duration || 0;
+      // Ensure genuine full playback through to the end (within 2s of end)
+      const isGenuineCompletion = totalDur > 0 && maxWatchedTimeRef.current >= totalDur - 2.5;
+
+      if (isGenuineCompletion) {
+        soundManager.playVideoComplete();
+        progressManager.completeVideo(selectedLesson.id, 'dll');
+        setCompletedVideos(progressManager.getVideoStats().completedVideos);
+      }
     }
   };
 
@@ -338,7 +341,8 @@ export const VideoTutorialsView: React.FC = () => {
     }
   }, [isFullscreen, isPlaying, triggerFullscreenActivity]);
 
-  // Keyboard Shortcuts Listener (Space, J, K, L, F, ESC)
+  // Keyboard Shortcuts Listener (Space for Play/Pause, J for Rewind, K for Pause, F for Fullscreen)
+  // Forward shortcut 'L' removed to enforce backward-navigation only!
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -356,9 +360,6 @@ export const VideoTutorialsView: React.FC = () => {
       } else if (e.key === 'k' || e.key === 'K') {
         e.preventDefault();
         pauseVideoStrict();
-      } else if (e.key === 'l' || e.key === 'L') {
-        e.preventDefault();
-        handleForward();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         toggleFullscreen();
@@ -369,7 +370,7 @@ export const VideoTutorialsView: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [togglePlay, handleRewind, pauseVideoStrict, handleForward, toggleFullscreen]);
+  }, [togglePlay, handleRewind, pauseVideoStrict, toggleFullscreen]);
 
   // Sync document fullscreen state
   useEffect(() => {
@@ -402,13 +403,13 @@ export const VideoTutorialsView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800/80">
         <div>
           <span className="inline-block px-3 py-1 rounded-md text-xs font-bold font-mono uppercase tracking-wider bg-blue-50 dark:bg-blue-950/70 text-[#2563EB] dark:text-blue-400 border border-blue-200 dark:border-blue-900/60 mb-2">
-            VIDEO MASTERCLASSES
+            VISUALIZE SECTION (+8 RAW PTS PER VIDEO)
           </span>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-sans text-slate-900 dark:text-white tracking-tight">
             Interactive Video Masterclasses
           </h1>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-3xl mt-2 leading-relaxed">
-            High-definition video lessons and visual animations that make Doubly Linked Lists easy to understand, covering node structure, head and tail pointers, bidirectional traversal, insertion, deletion, and pointer rewiring.
+            High-definition video lessons and visual animations that make Doubly Linked Lists easy to understand. Watch videos fully to earn competition points.
           </p>
         </div>
 
@@ -448,70 +449,83 @@ export const VideoTutorialsView: React.FC = () => {
                         className={`px-3 py-1 rounded-md text-xs font-bold font-mono border tracking-wide transition-colors ${
                           isSelected
                             ? 'bg-blue-50 dark:bg-blue-950/80 text-[#2563EB] dark:text-blue-300 border-blue-200 dark:border-slate-700'
-                            : 'bg-[#F8FAFC] dark:bg-blue-950/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
+                            : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80'
                         }`}
                       >
                         {lesson.lessonNumber}
                       </span>
-
-                      {/* Small Minimal Completion Indicator */}
-                      {isCompleted && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">
-                          <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>COMPLETED</span>
-                        </span>
-                      )}
+                      <span className="text-xs font-mono font-medium text-slate-400 dark:text-slate-500">
+                        {lesson.filename}
+                      </span>
                     </div>
 
-                    <div
-                      className={`p-2 rounded-xl transition-colors ${
-                        isSelected
-                          ? 'bg-primary-gradient text-white shadow-xs'
-                          : 'bg-blue-50 dark:bg-blue-950/30 text-[#2563EB] dark:text-blue-300'
-                      }`}
-                    >
-                      <VideoIcon className="w-4 h-4" />
-                    </div>
+                    {isCompleted ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/50">
+                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Completed (+8 pts)</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        <span>8 pts available</span>
+                      </span>
+                    )}
                   </div>
 
-                  {/* Title & Description */}
-                  <h2 className="text-xl sm:text-2xl font-extrabold font-sans text-slate-900 dark:text-white tracking-tight leading-snug mb-2.5 break-words">
+                  {/* Title */}
+                  <h3 className="text-lg sm:text-xl font-bold font-sans text-slate-900 dark:text-white mb-2 leading-snug">
                     {lesson.title}
-                  </h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-5 font-normal break-words">
+                  </h3>
+
+                  {/* Description */}
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
                     {lesson.description}
                   </p>
 
-                  {/* Topic Labels */}
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {lesson.topics.map((topic, idx) => (
+                  {/* Topic Tags */}
+                  <div className="flex flex-wrap gap-1.5 mb-6">
+                    {lesson.topics.map((t, idx) => (
                       <span
                         key={idx}
-                        className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#F1F5F9] dark:bg-[#0B1120] text-[#334155] dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 tracking-normal"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-50 dark:bg-[#0B1120] text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-800"
                       >
-                        {topic}
+                        {t}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                {/* Primary Button: CLICK TO WATCH */}
-                <button
-                  id={`btn-watch-${lesson.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectLesson(lesson, true);
-                  }}
-                  className={`w-full py-3 px-4 rounded-xl font-bold text-xs tracking-wider uppercase transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] ${
-                    isSelected
-                      ? 'bg-primary-gradient text-white shadow-md shadow-primary-gradient'
-                      : 'bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-[#2563EB] dark:text-blue-300 border border-blue-200 dark:border-slate-800'
-                  }`}
-                  aria-label={`Click to watch ${lesson.title}`}
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>CLICK TO WATCH</span>
-                </button>
+                {/* Bottom Card Action */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs font-mono font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                    <Tv className="w-3.5 h-3.5" />
+                    <span>Video Lesson</span>
+                  </span>
+
+                  <button
+                    id={`btn-play-card-${lesson.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectLesson(lesson, true);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-sm ${
+                      isSelected && isPlaying
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                        : 'bg-primary-gradient text-white shadow-primary-gradient hover:brightness-110'
+                    }`}
+                  >
+                    {isSelected && isPlaying ? (
+                      <>
+                        <Pause className="w-3.5 h-3.5" />
+                        <span>Now Playing</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>{isCompleted ? 'Watch Again' : 'Start Video'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -519,44 +533,46 @@ export const VideoTutorialsView: React.FC = () => {
       </section>
 
       {/* =========================================================================
-          PART 7 — VIDEO PLAYER AREA
+          VIDEO PLAYER CONTAINER
           ========================================================================= */}
       <section
-        aria-label="Video Player Area"
-        className="p-4 sm:p-8 rounded-2xl bg-white dark:bg-[#111827]/90 border border-slate-200 dark:border-slate-800 shadow-[0_4px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_0_32px_rgba(37,99,235,0.1)] space-y-4 sm:space-y-6"
+        aria-label="Video Player Workspace"
+        className="space-y-4"
       >
-        {/* Current Lesson Header Indicator */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-primary-gradient text-white shrink-0 shadow-xs">
-              <Tv className="w-5 h-5 text-white" />
+        {/* Now Playing Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-[#111827] p-4 sm:px-6 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-400 border border-blue-100 dark:border-slate-800">
+              <VideoIcon className="w-4 h-4" />
             </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
-                CURRENT LESSON
-              </span>
-              <h3 className="text-base sm:text-xl font-bold font-sans text-slate-900 dark:text-white break-words leading-snug">
-                {selectedLesson.title}
-              </h3>
+            <div>
+              <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#2563EB] dark:text-blue-400">
+                NOW ACTIVE: {selectedLesson.lessonNumber}
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white font-sans">
+                {selectedLesson.nowPlayingTitle}
+              </h2>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            {completedVideos.includes(selectedLesson.id) && (
-              <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold rounded-lg font-mono flex items-center gap-1.5">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {completedVideos.includes(selectedLesson.id) ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Completed</span>
+                <span>Rewarded (+8 pts)</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-300 border border-blue-100 dark:border-slate-800 font-mono">
+                <span>Watch full video for +8 pts</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* Video Player Display Container (Refined Border, Radius & Soft Shadow) */}
+        {/* Video Player Box */}
         <div
           ref={playerContainerRef}
           onMouseMove={triggerFullscreenActivity}
-          onPointerMove={triggerFullscreenActivity}
-          onTouchStart={triggerFullscreenActivity}
           onClick={triggerFullscreenActivity}
           className={`relative w-full bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/80 dark:border-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.25)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_24px_rgba(37,99,235,0.12)] flex items-center justify-center group select-none ${
             isFullscreen
@@ -566,8 +582,7 @@ export const VideoTutorialsView: React.FC = () => {
               : 'aspect-video'
           }`}
         >
-
-          {/* Case 2: Error State (Provided video genuinely cannot load) */}
+          {/* Error State */}
           {selectedLesson && hasError && (
             <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-900 to-[#070B18] text-slate-200 space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-rose-950/60 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-md">
@@ -581,18 +596,10 @@ export const VideoTutorialsView: React.FC = () => {
                   Please check the provided video file: <code className="text-rose-300 font-mono">{selectedLesson.filename}</code>
                 </p>
               </div>
-              <button
-                id="btn-video-try-again"
-                onClick={handleRetry}
-                className="px-5 py-2.5 bg-primary-gradient text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-md shadow-primary-gradient flex items-center gap-2 active:scale-95"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>TRY AGAIN</span>
-              </button>
             </div>
           )}
 
-          {/* Inner 16:9 Frame Wrapper: preserves exact aspect ratio and positioning across fullscreen and normal */}
+          {/* Inner 16:9 Frame Wrapper */}
           <div className="relative w-full h-full max-w-full max-h-full aspect-video flex items-center justify-center">
             {/* HTML5 Video Element */}
             <video
@@ -604,6 +611,7 @@ export const VideoTutorialsView: React.FC = () => {
               }`}
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
+              onSeeking={handleSeeking}
               onEnded={handleEnded}
               onError={handleError}
               onWaiting={handleWaiting}
@@ -647,77 +655,63 @@ export const VideoTutorialsView: React.FC = () => {
             </div>
           )}
 
-          {/* =========================================================================
-              FULLSCREEN MODE: GLASS CONTROL OVERLAY (AUTO-HIDES ON INACTIVITY)
-              Exact Order: [ REWIND ] [ PLAY / PAUSE ] [ FORWARD ] | SPEED | VOLUME | FULLSCREEN
-              ========================================================================= */}
-          {isFullscreen && selectedLesson && (
+          {/* FULLSCREEN CONTROLS OVERLAY (BACKWARD NAVIGATION ONLY) */}
+          {isFullscreen && selectedLesson && !hasError && (
             <div
-              onMouseEnter={handleControlsInteraction}
-              onTouchStart={handleControlsInteraction}
-              onClick={(e) => e.stopPropagation()}
-              className={`absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-50 bg-slate-900/65 dark:bg-[#0B1120]/75 backdrop-blur-xl border border-white/15 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xl space-y-3 transition-all duration-300 ease-out ${
-                isFullscreenControlsVisible
-                  ? 'opacity-100 translate-y-0 pointer-events-auto'
-                  : 'opacity-0 translate-y-4 pointer-events-none'
+              onMouseMove={handleControlsInteraction}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleControlsInteraction();
+              }}
+              className={`absolute inset-x-0 bottom-0 z-30 p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 ${
+                isFullscreenControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}
             >
-              {/* Progress Scrubber & Timestamp */}
-              <div className="space-y-1">
-                <div className="relative flex items-center group/scrub">
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    step={0.1}
-                    value={currentTime}
-                    onChange={handleSeek}
-                    className="w-full h-2.5 bg-white/20 dark:bg-slate-700/60 rounded-full appearance-none cursor-pointer accent-[#2563EB] dark:accent-blue-500 focus:outline-none"
-                    aria-label="Seek video progress"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-xs font-mono text-slate-300 dark:text-slate-400 font-semibold px-0.5">
+              {/* Timeline scrubber: BACKWARD NAVIGATION ONLY */}
+              <div className="space-y-1.5 mb-4">
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  className="w-full h-1.5 bg-white/20 hover:bg-white/30 rounded-lg appearance-none cursor-pointer accent-[#2563EB] transition-all"
+                  aria-label="Video timeline scrubber (backward navigation only)"
+                />
+                <div className="flex justify-between items-center text-xs font-mono text-slate-300">
                   <span>{formatTime(currentTime)}</span>
                   <span>{formatTime(duration)}</span>
                 </div>
               </div>
 
-              {/* Exact Control Order: LEFT (1. Rewind, 2. Play/Pause, 3. Forward) | MIDDLE (Speed) | RIGHT (Volume, Slider, Fullscreen) */}
+              {/* Controls: LEFT ([REWIND 10s] [PLAY/PAUSE]) | MIDDLE (Speed) | RIGHT (Volume, Fullscreen) */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-white">
-                {/* Left Side: [ REWIND ] [ PLAY / PAUSE ] [ FORWARD ] */}
                 <div className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3">
-                  {/* 1. REWIND BUTTON */}
+                  {/* REWIND BUTTON (BACKWARD NAVIGATION ONLY) */}
                   <button
                     onClick={handleRewind}
                     className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-white/10 hover:bg-white/20 dark:bg-blue-950/40 text-slate-200 hover:text-white transition-colors cursor-pointer active:scale-95 flex items-center justify-center shrink-0"
                     title="Rewind 10s (J)"
+                    aria-label="Rewind 10s"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </button>
 
-                  {/* 2. PLAY / PAUSE BUTTON */}
+                  {/* PLAY / PAUSE BUTTON */}
                   <button
                     onClick={togglePlay}
                     className="h-11 sm:h-10 px-5 sm:px-6 rounded-xl bg-primary-gradient text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-primary-gradient active:scale-95 transition-all hover:brightness-110"
                     title={isPlaying ? 'Pause video (Space/K)' : 'Play video (Space)'}
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
                   >
                     {isPlaying ? <Pause className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> : <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />}
                     <span className="uppercase font-bold text-xs">{isPlaying ? 'Pause' : 'Play'}</span>
                   </button>
-
-                  {/* 3. FORWARD BUTTON */}
-                  <button
-                    onClick={handleForward}
-                    className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-white/10 hover:bg-white/20 dark:bg-blue-950/40 text-slate-200 hover:text-white transition-colors cursor-pointer active:scale-95 flex items-center justify-center shrink-0"
-                    title="Forward 10s (L)"
-                  >
-                    <RotateCw className="w-4 h-4" />
-                  </button>
                 </div>
 
-                {/* Right Side: Speed Selector + Volume + Fullscreen */}
+                {/* Right Side: Speed + Volume + Exit Fullscreen */}
                 <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
-                  {/* 4. PLAYBACK SPEED SELECTOR */}
                   <div className="flex items-center gap-0.5 sm:gap-1 bg-black/40 border border-white/10 dark:border-slate-800 rounded-xl p-1 shadow-inner shrink-0">
                     {[0.5, 1, 1.5, 2].map((spd) => (
                       <button
@@ -734,16 +728,14 @@ export const VideoTutorialsView: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* 5. VOLUME ICON, 6. VOLUME SLIDER, 7. FULLSCREEN EXIT */}
-                  <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={toggleMute}
-                      className="p-2 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white cursor-pointer transition-colors"
+                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white cursor-pointer"
                       title={isMuted ? 'Unmute' : 'Mute'}
                     >
-                      {isMuted || volume === 0 ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4" />}
+                      {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
-
                     <input
                       type="range"
                       min={0}
@@ -751,18 +743,19 @@ export const VideoTutorialsView: React.FC = () => {
                       step={0.05}
                       value={isMuted ? 0 : volume}
                       onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                      className="w-14 sm:w-20 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[#2563EB] dark:accent-blue-500 hidden min-[380px]:inline-block"
+                      className="w-16 sm:w-20 h-1 bg-white/20 accent-[#2563EB] cursor-pointer"
                       aria-label="Volume slider"
                     />
-
-                    <button
-                      onClick={toggleFullscreen}
-                      className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white cursor-pointer transition-colors active:scale-95 flex items-center justify-center shrink-0"
-                      title="Exit Fullscreen (F / ESC)"
-                    >
-                      <Minimize className="w-4 h-4" />
-                    </button>
                   </div>
+
+                  <button
+                    onClick={toggleFullscreen}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white cursor-pointer"
+                    title="Exit Fullscreen (F/Esc)"
+                    aria-label="Exit Fullscreen"
+                  >
+                    <Minimize className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -770,149 +763,127 @@ export const VideoTutorialsView: React.FC = () => {
         </div>
 
         {/* =========================================================================
-            NORMAL VIDEO MODE: DOCKED RESPONSIVE CONTROLS MATCHING REFERENCE
-            Exact Order:
-            Left:   1. REWIND  →  2. PLAY / PAUSE  →  3. FORWARD
-            Middle: 4. PLAYBACK SPEED
-            Right:  5. VOLUME  →  6. VOLUME SLIDER  →  7. FULLSCREEN
+            INLINE VIDEO CONTROL BAR (WHEN NOT FULLSCREEN)
+            BACKWARD NAVIGATION ONLY — NO SKIP / FORWARD BUTTONS
             ========================================================================= */}
-        {selectedLesson && !isFullscreen && (
-          <div
-            id="video-controls-container"
-            className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-3 sm:space-y-4"
-          >
-            {/* Horizontal Progress Bar & Time Display */}
-            <div className="space-y-1.5">
-              <div className="relative flex items-center group/scrub">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs space-y-3.5">
+          {/* Timeline Scrubber: BACKWARD SEEKING ONLY */}
+          <div className="space-y-1.5">
+            <input
+              id="video-timeline-scrubber"
+              type="range"
+              min={0}
+              max={duration || 100}
+              step={0.1}
+              value={currentTime}
+              onChange={handleSeek}
+              disabled={hasError}
+              className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#2563EB] transition-all disabled:opacity-50"
+              aria-label="Video timeline scrubber (backward navigation only)"
+            />
+            <div className="flex justify-between items-center text-xs font-mono font-medium text-slate-500 dark:text-slate-400">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Primary Controls (LEFT: Rewind + Play/Pause | RIGHT: Speed, Volume, Fullscreen) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+            <div className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3">
+              {/* REWIND BUTTON (BACKWARD NAVIGATION ONLY) */}
+              <button
+                id="btn-video-rewind"
+                onClick={handleRewind}
+                disabled={hasError}
+                className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-[#0B1120] dark:hover:bg-blue-950/40 border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0"
+                title="Rewind 10 seconds (J)"
+                aria-label="Rewind 10 seconds"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+
+              {/* PLAY / PAUSE BUTTON */}
+              <button
+                id="btn-video-play-pause"
+                onClick={togglePlay}
+                disabled={hasError}
+                className="h-11 sm:h-10 px-5 sm:px-6 rounded-xl bg-primary-gradient text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-primary-gradient active:scale-95 cursor-pointer disabled:opacity-50 hover:brightness-110"
+                title={isPlaying ? 'Pause video (Space/K)' : 'Play video (Space)'}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> : <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />}
+                <span className="tracking-wide uppercase font-bold text-xs">{isPlaying ? 'Pause' : 'Play'}</span>
+              </button>
+            </div>
+
+            {/* SECONDARY CONTROLS: Speed Selector + Volume + Fullscreen */}
+            <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3.5 border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-2.5 sm:pt-0">
+              {/* PLAYBACK SPEED SELECTOR */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0B1120] border border-slate-200/80 dark:border-slate-800 rounded-xl p-1 shadow-inner shrink-0">
+                {[0.5, 1, 1.5, 2].map((spd) => (
+                  <button
+                    key={spd}
+                    id={`btn-speed-${spd}x`}
+                    onClick={() => handleChangeSpeed(spd)}
+                    disabled={hasError}
+                    className={`px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-mono font-bold transition-all cursor-pointer disabled:opacity-50 ${
+                      playbackSpeed === spd
+                        ? 'bg-primary-gradient text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
+
+              {/* VOLUME SLIDER */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  id="btn-video-mute-toggle"
+                  onClick={toggleMute}
+                  disabled={hasError}
+                  className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer disabled:opacity-50"
+                  title={isMuted ? 'Unmute' : 'Mute'}
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
+                  )}
+                </button>
                 <input
-                  id="video-timeline-scrubber"
+                  id="video-volume-slider"
                   type="range"
                   min={0}
-                  max={duration || 100}
-                  step={0.1}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  disabled={hasError || duration === 0}
-                  className="w-full h-3 sm:h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-[#2563EB] dark:accent-blue-500 focus:outline-none transition-all disabled:opacity-50"
-                  aria-label="Seek video progress"
+                  max={1}
+                  step={0.05}
+                  value={isMuted ? 0 : volume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  disabled={hasError}
+                  className="w-16 sm:w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#2563EB] disabled:opacity-50"
+                  aria-label="Volume slider"
                 />
               </div>
 
-              <div className="flex items-center justify-between text-xs font-mono text-slate-600 dark:text-slate-400 font-semibold px-0.5">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Exact Control Order Bar: [ REWIND ] [ PLAY / PAUSE ] [ FORWARD ] | SPEED | VOLUME | FULLSCREEN */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 pt-0.5">
-              {/* LEFT SIDE: [ REWIND ] [ PLAY / PAUSE ] [ FORWARD ] (Centered on mobile, left on desktop) */}
-              <div className="flex items-center justify-center sm:justify-start gap-2.5 sm:gap-3">
-                {/* 1. REWIND BUTTON (FIRST) */}
-                <button
-                  id="btn-video-rewind"
-                  onClick={handleRewind}
-                  disabled={hasError}
-                  className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-[#0B1120] dark:hover:bg-blue-950/40 border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0"
-                  title="Rewind 10 seconds (J)"
-                  aria-label="Rewind 10 seconds"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-
-                {/* 2. PLAY / PAUSE BUTTON (SECOND / CENTER) */}
-                <button
-                  id="btn-video-play-pause"
-                  onClick={togglePlay}
-                  disabled={hasError}
-                  className="h-11 sm:h-10 px-5 sm:px-6 rounded-xl bg-primary-gradient text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-primary-gradient active:scale-95 cursor-pointer disabled:opacity-50 hover:brightness-110"
-                  title={isPlaying ? 'Pause video (Space/K)' : 'Play video (Space)'}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                >
-                  {isPlaying ? <Pause className="w-4 h-4 sm:w-4.5 sm:h-4.5" /> : <Play className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current" />}
-                  <span className="tracking-wide uppercase font-bold text-xs">{isPlaying ? 'Pause' : 'Play'}</span>
-                </button>
-
-                {/* 3. FORWARD BUTTON (THIRD) */}
-                <button
-                  id="btn-video-forward"
-                  onClick={handleForward}
-                  disabled={hasError}
-                  className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-[#0B1120] dark:hover:bg-blue-950/40 border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0"
-                  title="Forward 10 seconds (L)"
-                  aria-label="Forward 10 seconds"
-                >
-                  <RotateCw className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* SECONDARY CONTROLS: Speed Selector + Volume + Fullscreen */}
-              <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3.5 border-t sm:border-t-0 border-slate-100 dark:border-slate-800 pt-2.5 sm:pt-0">
-                {/* 4. PLAYBACK SPEED (0.5x | 1x | 1.5x | 2x) */}
-                <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-[#0B1120] border border-slate-200/90 dark:border-slate-800 rounded-xl p-1 shadow-inner shrink-0">
-                  {[0.5, 1, 1.5, 2].map((spd) => (
-                    <button
-                      key={spd}
-                      id={`btn-video-speed-${spd}`}
-                      onClick={() => handleChangeSpeed(spd)}
-                      className={`px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-mono font-bold transition-all cursor-pointer ${
-                        playbackSpeed === spd
-                          ? 'bg-primary-gradient text-white shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                      aria-label={`Set speed to ${spd}x`}
-                    >
-                      {spd}x
-                    </button>
-                  ))}
-                </div>
-
-                {/* RIGHT SIDE: 5. VOLUME, 6. VOLUME SLIDER, 7. FULLSCREEN */}
-                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                  {/* 5. VOLUME ICON BUTTON */}
-                  <button
-                    id="btn-video-mute"
-                    onClick={toggleMute}
-                    className="p-2 sm:p-2.5 hover:bg-slate-100 dark:hover:bg-blue-950/40 rounded-xl text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-                    title={isMuted ? 'Unmute' : 'Mute'}
-                    aria-label={isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    {isMuted || volume === 0 ? (
-                      <VolumeX className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <Volume2 className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
-                    )}
-                  </button>
-
-                  {/* 6. VOLUME SLIDER */}
-                  <input
-                    id="video-volume-slider"
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                    className="w-14 sm:w-20 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-[#2563EB] dark:accent-blue-500 hidden min-[380px]:inline-block"
-                    aria-label="Volume slider"
-                  />
-
-                  {/* 7. FULLSCREEN BUTTON */}
-                  <button
-                    id="btn-video-fullscreen"
-                    onClick={toggleFullscreen}
-                    className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-[#0B1120] dark:hover:bg-blue-950/40 border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0"
-                    title={isFullscreen ? 'Exit Fullscreen (F / ESC)' : 'Enter Fullscreen (F)'}
-                    aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                  >
-                    {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+              {/* FULLSCREEN BUTTON */}
+              <button
+                id="btn-video-fullscreen"
+                onClick={toggleFullscreen}
+                disabled={hasError}
+                className="p-2 sm:p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-[#0B1120] dark:hover:bg-blue-950/40 border border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer shadow-xs disabled:opacity-50 shrink-0"
+                title="Fullscreen (F)"
+                aria-label="Toggle Fullscreen"
+              >
+                <Maximize className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </section>
     </div>
   );
 };
+
+export default VideoTutorialsView;

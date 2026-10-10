@@ -217,14 +217,6 @@ export const DLLRightTaskPanel: React.FC<DLLRightTaskPanelProps> = ({
           <Check className="w-4 h-4" />
           <span>Check Answer</span>
         </button>
-
-        <button
-          onClick={onResetLevel}
-          className="w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Level Workspace</span>
-        </button>
       </div>
     </aside>
   );

@@ -190,20 +190,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <Volume2 className="w-4 h-4 text-[#2563EB] dark:text-[#60A5FA]" />
             )}
           </button>
-
-          {/* Reset Progress Button */}
-          <button
-            id="btn-header-reset-progress"
-            onClick={() => {
-              soundManager.playModalOpen();
-              onResetAllProgress();
-            }}
-            className="p-1.5 sm:p-2 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200 dark:border-slate-800 rounded-xl transition-colors cursor-pointer shadow-xs"
-            title="Reset Progress"
-            aria-label="Reset Progress"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </header>

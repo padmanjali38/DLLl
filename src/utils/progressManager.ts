@@ -1,6 +1,110 @@
 import { ModuleRecord, ModuleStatus, UserProgressState } from '../types/game';
+import { ScoringEvent, TopicDefinition, TopicScoreSummary } from '../types/scoring';
 
 const STORAGE_KEY = 'hash_quest_field_notes_progress_v2';
+const SCORING_EVENTS_KEY = 'algolearn_scoring_events_v2';
+const PARTICIPANT_KEY = 'algolearn_participant_id';
+
+// =========================================================================
+// TOPIC DEFINITIONS (Multi-Topic Architecture: DLL, Queue, Graphs)
+// =========================================================================
+export const TOPIC_REGISTRY: Record<string, TopicDefinition> = {
+  dll: {
+    id: 'dll',
+    name: 'Doubly Linked List',
+    title: 'Doubly Linked List Learning Progress',
+    scoreTitle: 'Doubly Linked List Topic Score',
+    description: 'Master bidirectional pointers, node anatomy, constant-time boundary insertions, deletions, and memory management.',
+    theoryModulesCount: 12,
+    videoLessons: [
+      { id: 'lesson-01', title: 'What is DLL? & DLL Insertion' },
+      { id: 'lesson-02', title: 'Traversal & DLL Deletion' },
+    ],
+    gameTasks: [
+      { id: 'dll-task-1-1', title: 'DLL Node Anatomy & Fields', levelId: 1 },
+      { id: 'dll-task-1-2', title: 'Allocate Node on Dynamic Heap', levelId: 1 },
+      { id: 'dll-task-1-3', title: 'Single Node Boundary State', levelId: 1 },
+      { id: 'dll-task-2-1', title: 'Insert at Head (Prepend)', levelId: 2 },
+      { id: 'dll-task-2-2', title: 'Insert at Tail (Append)', levelId: 2 },
+      { id: 'dll-task-2-3', title: 'Insert at Middle (4-Pointer Wire)', levelId: 2 },
+      { id: 'dll-task-3-1', title: 'Delete Head Boundary Node', levelId: 3 },
+      { id: 'dll-task-3-2', title: 'Delete Tail Boundary Node', levelId: 3 },
+      { id: 'dll-task-3-3', title: 'Delete Middle Node (Bypass)', levelId: 3 },
+    ],
+    quizQuestions: [
+      { id: 1, title: 'DLL vs SLL Distinction' },
+      { id: 2, title: 'Predecessor Pointer Advantage' },
+      { id: 3, title: 'Single-Node Pointer Values' },
+      { id: 4, title: 'Insertion at Head Sequence' },
+      { id: 5, title: 'Insertion at Tail Sequence' },
+      { id: 6, title: 'Middle Insertion 4-Pointer Wire' },
+      { id: 7, title: 'Deletion at Head Boundary' },
+      { id: 8, title: 'Middle Deletion Pointer Bypass' },
+      { id: 9, title: 'Browser History & Real-World Use' },
+      { id: 10, title: 'Memory Overhead & Cache Locality' },
+    ],
+  },
+  queue: {
+    id: 'queue',
+    name: 'Queue',
+    title: 'Queue Learning Progress',
+    scoreTitle: 'Queue Topic Score',
+    description: 'Master FIFO sequential pipelines, enqueue/dequeue mechanics, circular ring buffers, and scheduling architectures.',
+    theoryModulesCount: 8,
+    videoLessons: [
+      { id: 'queue-vid-01', title: 'Queue Architecture & FIFO Mechanics' },
+      { id: 'queue-vid-02', title: 'Circular Queue & Dynamic Ring Buffers' },
+    ],
+    gameTasks: [
+      { id: 'queue-task-1', title: 'Enqueue Operation (Back of Queue)', levelId: 1 },
+      { id: 'queue-task-2', title: 'Dequeue Operation (Front of Queue)', levelId: 1 },
+      { id: 'queue-task-3', title: 'Peek & Boundary Checks', levelId: 1 },
+      { id: 'queue-task-4', title: 'Circular Buffer Wrap-Around', levelId: 2 },
+      { id: 'queue-task-5', title: 'Queue using Two Stacks', levelId: 2 },
+      { id: 'queue-task-6', title: 'Customer Pipeline Simulation', levelId: 3 },
+    ],
+    quizQuestions: [
+      { id: 1, title: 'FIFO Principle in Queue' },
+      { id: 2, title: 'Enqueue Time Complexity' },
+      { id: 3, title: 'Dequeue from Empty Queue' },
+      { id: 4, title: 'Circular Array Modulo Math' },
+      { id: 5, title: 'Queue using Two Stacks' },
+      { id: 6, title: 'Breadth-First Search (BFS)' },
+      { id: 7, title: 'Priority Queue vs Standard Queue' },
+      { id: 8, title: 'Producer-Consumer Thread Buffer' },
+    ],
+  },
+  graphs: {
+    id: 'graphs',
+    name: 'Graphs',
+    title: 'Graphs Learning Progress',
+    scoreTitle: 'Graphs Topic Score',
+    description: 'Explore vertex-edge topologies, adjacency representations, and graph traversal algorithms.',
+    theoryModulesCount: 10,
+    videoLessons: [
+      { id: 'graphs-vid-01', title: 'Graph Representations: Matrix vs List' },
+      { id: 'graphs-vid-02', title: 'BFS & DFS Traversal Algorithms' },
+    ],
+    gameTasks: [
+      { id: 'graphs-task-1', title: 'Build Adjacency Matrix', levelId: 1 },
+      { id: 'graphs-task-2', title: 'Build Adjacency List', levelId: 1 },
+      { id: 'graphs-task-3', title: 'Breadth-First Search (BFS)', levelId: 2 },
+      { id: 'graphs-task-4', title: 'Depth-First Search (DFS)', levelId: 2 },
+      { id: 'graphs-task-5', title: 'Detect Cycle in Directed Graph', levelId: 2 },
+      { id: 'graphs-task-6', title: 'Dijkstra Shortest Path', levelId: 3 },
+    ],
+    quizQuestions: [
+      { id: 1, title: 'Graph Representation Space Complexity' },
+      { id: 2, title: 'BFS Queue Mechanism' },
+      { id: 3, title: 'DFS Stack Mechanism' },
+      { id: 4, title: 'Topological Sort Applicability' },
+      { id: 5, title: 'Dijkstra Priority Queue' },
+      { id: 6, title: 'Bipartite Graph Verification' },
+      { id: 7, title: 'Connected Components Count' },
+      { id: 8, title: 'Spanning Tree Edge Count' },
+    ],
+  },
+};
 
 export const FIELD_NOTES_MODULES: Omit<ModuleRecord, 'status' | 'progressPercent'>[] = [
   {
@@ -172,9 +276,7 @@ const INITIAL_PROGRESS: UserProgressState = {
   hasCelebrated100Percent: false,
 };
 
-// Normalized map of chapter aliases to standard IDs
 export const THEORY_ID_MAP: Record<string, string> = {
-  // Doubly Linked List Slugs
   'what-is-dll': 'theory-01',
   'node-structure': 'theory-02',
   'head-tail-pointers': 'theory-03',
@@ -187,7 +289,6 @@ export const THEORY_ID_MAP: Record<string, string> = {
   'real-world-applications': 'theory-10',
   'core-advantages': 'theory-11',
   'limitations-tradeoffs': 'theory-12',
-  // Numerical & legacy aliases
   'what-is-hashing': 'theory-01',
   'hash-function': 'theory-02',
   'hash-table': 'theory-03',
@@ -222,10 +323,63 @@ type ProgressListener = (state: UserProgressState) => void;
 
 class ProgressManager {
   private state: UserProgressState;
+  private scoringEvents: ScoringEvent[] = [];
+  private eventKeySet: Set<string> = new Set();
+  private participantId: string;
+  private activeTopicId: string = 'dll';
   private listeners: Set<ProgressListener> = new Set();
 
   constructor() {
+    this.participantId = this.loadParticipantId();
+    this.scoringEvents = this.loadScoringEvents();
+    this.scoringEvents.forEach((ev) => {
+      this.eventKeySet.add(this.getEventKey(ev));
+    });
     this.state = this.loadState();
+    this.reconcileLegacyStateWithScoringEvents();
+  }
+
+  private loadParticipantId(): string {
+    if (typeof window === 'undefined') return 'student-default';
+    try {
+      let id = localStorage.getItem(PARTICIPANT_KEY);
+      if (!id) {
+        id = 'student_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem(PARTICIPANT_KEY, id);
+      }
+      return id;
+    } catch {
+      return 'student-default';
+    }
+  }
+
+  public getParticipantId(): string {
+    return this.participantId;
+  }
+
+  private getEventKey(ev: Omit<ScoringEvent, 'id' | 'timestamp'>): string {
+    return `${ev.participantId}:${ev.topicId}:${ev.activityType}:${ev.activityId}:${ev.reason}:${ev.attemptId || 'default'}`;
+  }
+
+  private loadScoringEvents(): ScoringEvent[] {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(SCORING_EVENTS_KEY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveScoringEvents() {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(SCORING_EVENTS_KEY, JSON.stringify(this.scoringEvents));
+    } catch {
+      // Ignore
+    }
   }
 
   private loadState(): UserProgressState {
@@ -262,10 +416,73 @@ class ProgressManager {
     if (typeof window === 'undefined') return;
     try {
       this.state.lastActiveTimestamp = Date.now();
+      // Keep totalScore synced to the normalized topic score (max 100)
+      const topicSummary = this.getTopicScoreSummary(this.activeTopicId);
+      this.state.totalScore = Math.round(topicSummary.earnedScore);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
       this.notifyListeners();
     } catch {
       // Ignore write errors
+    }
+  }
+
+  /**
+   * Automatically reconcile pre-existing completed activities from previous sessions
+   * so students don't lose achievements, while maintaining single-award discipline.
+   */
+  private reconcileLegacyStateWithScoringEvents() {
+    // 1. Existing completed videos -> +8 raw
+    if (Array.isArray(this.state.completedVideos)) {
+      this.state.completedVideos.forEach((vidId) => {
+        this.recordScoringEvent({
+          participantId: this.participantId,
+          topicId: 'dll',
+          activityType: 'VISUALIZE',
+          activityId: vidId,
+          scoreDelta: 8,
+          reason: 'VIDEO_COMPLETED',
+        });
+      });
+    }
+
+    // 2. Existing game tasks from localStorage -> +6 raw each
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTasks = localStorage.getItem('dll_master_game_completed_tasks_v4');
+        if (savedTasks) {
+          const taskIds: string[] = JSON.parse(savedTasks);
+          taskIds.forEach((tId) => {
+            this.recordScoringEvent({
+              participantId: this.participantId,
+              topicId: 'dll',
+              activityType: 'GAME',
+              activityId: tId,
+              scoreDelta: 6,
+              reason: 'GAME_TASK_COMPLETED',
+            });
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 3. Existing quiz scores if submitted
+    if (this.state.quizSubmitted && this.state.quizScores) {
+      Object.entries(this.state.quizScores).forEach(([qIdStr, optIdx]) => {
+        const qId = parseInt(qIdStr, 10);
+        // We record this event if not present
+        this.recordScoringEvent({
+          participantId: this.participantId,
+          topicId: 'dll',
+          activityType: 'QUIZ',
+          activityId: String(qId),
+          attemptId: 'legacy_attempt',
+          scoreDelta: 3, // Legacy positive assumption if score was 100
+          reason: 'QUIZ_CORRECT',
+          metadata: { optionIndex: optIdx },
+        });
+      });
     }
   }
 
@@ -286,7 +503,391 @@ class ProgressManager {
     return JSON.parse(JSON.stringify(this.state));
   }
 
-  // 1. THEORY STATS (12 Modules)
+  public setActiveTopic(topicId: string) {
+    if (TOPIC_REGISTRY[topicId]) {
+      this.activeTopicId = topicId;
+      this.notifyListeners();
+    }
+  }
+
+  public getActiveTopicId(): string {
+    return this.activeTopicId;
+  }
+
+  // =========================================================================
+  // SCORING EVENT RECORDING ENGINE (Idempotent & Deduplication-Safe)
+  // =========================================================================
+  public recordScoringEvent(
+    eventData: Omit<ScoringEvent, 'id' | 'timestamp'>
+  ): boolean {
+    const key = this.getEventKey(eventData);
+    if (this.eventKeySet.has(key)) {
+      return false; // Prevent duplicate reward or deduction
+    }
+
+    const newEvent: ScoringEvent = {
+      ...eventData,
+      id: 'ev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      timestamp: Date.now(),
+    };
+
+    this.scoringEvents.push(newEvent);
+    this.eventKeySet.add(key);
+    this.saveScoringEvents();
+    this.saveState();
+    return true;
+  }
+
+  public getScoringEvents(topicId?: string): ScoringEvent[] {
+    if (!topicId) return [...this.scoringEvents];
+    return this.scoringEvents.filter((ev) => ev.topicId === topicId);
+  }
+
+  // =========================================================================
+  // TOPIC SCORE NORMALIZATION & SUMMARY ENGINE (Max 100 Points Per Topic)
+  // =========================================================================
+  public getTopicScoreSummary(topicId: string = 'dll'): TopicScoreSummary {
+    const topic = TOPIC_REGISTRY[topicId] || TOPIC_REGISTRY['dll'];
+    const events = this.getScoringEvents(topic.id);
+
+    // 1. Eligible counts
+    const numVideos = topic.videoLessons.length;
+    const numGameTasks = topic.gameTasks.length;
+    const numQuizQuestions = topic.quizQuestions.length;
+
+    // 2. Section Maximum Raw Positive Scores:
+    // Game: +6 each, Visualize: +8 each, Quiz: +3 each
+    const videoMaxRaw = numVideos * 8;
+    const gameMaxRaw = numGameTasks * 6;
+    const quizMaxRaw = numQuizQuestions * 3;
+    const topicMaxRaw = videoMaxRaw + gameMaxRaw + quizMaxRaw;
+
+    // 3. Section Point Budgets out of 100 (Proportional):
+    // Budget = 100 * (sectionMaxRaw / topicMaxRaw)
+    let videoBudget = 0;
+    let gameBudget = 0;
+    let quizBudget = 0;
+
+    if (topicMaxRaw > 0) {
+      videoBudget = (videoMaxRaw / topicMaxRaw) * 100;
+      gameBudget = (gameMaxRaw / topicMaxRaw) * 100;
+      quizBudget = (quizMaxRaw / topicMaxRaw) * 100;
+
+      // Adjust rounding precision so sum of the 3 competition sections is EXACTLY 100
+      const totalBudgetCalculated = videoBudget + gameBudget + quizBudget;
+      const roundingDiff = 100 - totalBudgetCalculated;
+      if (Math.abs(roundingDiff) > 0.0001) {
+        quizBudget += roundingDiff;
+      }
+    }
+
+    // 4. Calculate Raw Earned & Deductions from Recorded Events:
+    // --- LEARN / THEORY ---
+    // (Theory awards 0 competition points)
+    const theoryCompletedCount =
+      topic.id === 'dll'
+        ? Math.min(topic.theoryModulesCount, (this.state.completedTheoryChapters || []).length)
+        : 0;
+
+    // --- VISUALIZE ---
+    // Raw +8 for each fully completed video
+    const completedVideosForTopic = Array.from(
+      new Set(
+        events
+          .filter((ev) => ev.activityType === 'VISUALIZE' && ev.reason === 'VIDEO_COMPLETED')
+          .map((ev) => ev.activityId)
+      )
+    );
+    const videoCompletedCount = completedVideosForTopic.length;
+    const videoEarnedRaw = videoCompletedCount * 8;
+    const videoDeductions = 0;
+    const videoNetRaw = Math.max(0, Math.min(videoMaxRaw, videoEarnedRaw));
+    const videoEarnedPoints =
+      videoMaxRaw > 0 ? (videoNetRaw / videoMaxRaw) * videoBudget : 0;
+
+    // --- GAME ---
+    // Raw +6 for each completed task, -1 for hints, -2 for guided solve steps
+    const completedTasksForTopic = Array.from(
+      new Set(
+        events
+          .filter((ev) => ev.activityType === 'GAME' && ev.reason === 'GAME_TASK_COMPLETED')
+          .map((ev) => ev.activityId)
+      )
+    );
+    const gameCompletedCount = completedTasksForTopic.length;
+    const gameEarnedRaw = gameCompletedCount * 6;
+
+    // Game deductions:
+    const hintEvents = events.filter((ev) => ev.activityType === 'GAME' && ev.reason === 'HINT_USED');
+    const guidedEvents = events.filter((ev) => ev.activityType === 'GAME' && ev.reason === 'GUIDED_SOLVE_STEP');
+    const gameDeductions = hintEvents.length * 1 + guidedEvents.length * 2;
+
+    const gameNetRaw = Math.max(0, Math.min(gameMaxRaw, gameEarnedRaw - gameDeductions));
+    const gameEarnedPoints =
+      gameMaxRaw > 0 ? (gameNetRaw / gameMaxRaw) * gameBudget : 0;
+
+    // --- QUIZ ---
+    // Raw +3 for correct, -1 for incorrect, 0 for timeout
+    const quizEvents = events.filter((ev) => ev.activityType === 'QUIZ');
+    const correctQuizEvents = quizEvents.filter((ev) => ev.reason === 'QUIZ_CORRECT');
+    const incorrectQuizEvents = quizEvents.filter((ev) => ev.reason === 'QUIZ_INCORRECT');
+    const timeoutQuizEvents = quizEvents.filter((ev) => ev.reason === 'QUIZ_TIMEOUT');
+
+    const quizEarnedRaw = correctQuizEvents.length * 3;
+    const quizDeductions = incorrectQuizEvents.length * 1; // -1 raw point deduction
+    const quizNetRaw = Math.max(0, Math.min(quizMaxRaw, quizEarnedRaw - quizDeductions));
+    const quizEarnedPoints =
+      quizMaxRaw > 0 ? (quizNetRaw / quizMaxRaw) * quizBudget : 0;
+
+    const quizCompletedCount = Array.from(new Set(quizEvents.map((ev) => ev.activityId))).length;
+
+    // Overall topic competition score (clamped between 0 and 100)
+    const earnedScore = Math.max(
+      0,
+      Math.min(100, videoEarnedPoints + gameEarnedPoints + quizEarnedPoints)
+    );
+
+    // Dynamic completion percentage:
+    // Theory modules + Videos + Game tasks + Quiz questions
+    const totalActivities =
+      topic.theoryModulesCount + numVideos + numGameTasks + numQuizQuestions;
+    const completedActivities =
+      theoryCompletedCount + videoCompletedCount + gameCompletedCount + quizCompletedCount;
+    const completionPercentage =
+      totalActivities > 0
+        ? Math.min(100, Math.round((completedActivities / totalActivities) * 100))
+        : 0;
+
+    return {
+      topicId: topic.id,
+      topicName: topic.name,
+      topicTitle: topic.title,
+      topicScoreTitle: topic.scoreTitle,
+      description: topic.description,
+      totalModules: topic.theoryModulesCount,
+      completedModules: theoryCompletedCount,
+      completionPercentage,
+      maxRawScore: topicMaxRaw,
+      netRawScore: videoNetRaw + gameNetRaw + quizNetRaw,
+      totalBudget: 100,
+      earnedScore,
+      sections: {
+        learn: {
+          section: 'learn',
+          label: 'Learn',
+          eligibleCount: topic.theoryModulesCount,
+          completedCount: theoryCompletedCount,
+          maxRawScore: 0,
+          earnedRawScore: 0,
+          rawDeductions: 0,
+          netRawScore: 0,
+          pointBudget: 0,
+          earnedPoints: 0,
+          isCompletionOnly: true,
+        },
+        visualize: {
+          section: 'visualize',
+          label: 'Visualize',
+          eligibleCount: numVideos,
+          completedCount: videoCompletedCount,
+          maxRawScore: videoMaxRaw,
+          earnedRawScore: videoEarnedRaw,
+          rawDeductions: videoDeductions,
+          netRawScore: videoNetRaw,
+          pointBudget: videoBudget,
+          earnedPoints: videoEarnedPoints,
+          isCompletionOnly: false,
+        },
+        game: {
+          section: 'game',
+          label: 'Game',
+          eligibleCount: numGameTasks,
+          completedCount: gameCompletedCount,
+          maxRawScore: gameMaxRaw,
+          earnedRawScore: gameEarnedRaw,
+          rawDeductions: gameDeductions,
+          netRawScore: gameNetRaw,
+          pointBudget: gameBudget,
+          earnedPoints: gameEarnedPoints,
+          isCompletionOnly: false,
+        },
+        quiz: {
+          section: 'quiz',
+          label: 'Quiz',
+          eligibleCount: numQuizQuestions,
+          completedCount: quizCompletedCount,
+          maxRawScore: quizMaxRaw,
+          earnedRawScore: quizEarnedRaw,
+          rawDeductions: quizDeductions,
+          netRawScore: quizNetRaw,
+          pointBudget: quizBudget,
+          earnedPoints: quizEarnedPoints,
+          isCompletionOnly: false,
+        },
+      },
+      events,
+    };
+  }
+
+  // =========================================================================
+  // ACTIVITY SCORING HELPERS
+  // =========================================================================
+
+  /**
+   * Complete Video: +8 raw points awarded ONLY once upon actual full video finish.
+   */
+  public completeVideo(videoId: string, topicId: string = 'dll'): boolean {
+    if (!this.state.completedVideos) {
+      this.state.completedVideos = [];
+    }
+    if (!this.state.completedVideos.includes(videoId)) {
+      this.state.completedVideos.push(videoId);
+    }
+
+    const recorded = this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId,
+      activityType: 'VISUALIZE',
+      activityId: videoId,
+      scoreDelta: 8,
+      reason: 'VIDEO_COMPLETED',
+    });
+
+    this.saveState();
+    return recorded;
+  }
+
+  public isVideoCompleted(videoId: string): boolean {
+    const list = this.state.completedVideos || [];
+    return list.includes(videoId);
+  }
+
+  /**
+   * Complete Game Task: +6 raw points awarded ONLY once per unique task.
+   */
+  public recordGameTaskCompleted(
+    topicId: string,
+    taskId: string,
+    attemptId?: string
+  ): boolean {
+    const recorded = this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId,
+      activityType: 'GAME',
+      activityId: taskId,
+      attemptId,
+      scoreDelta: 6,
+      reason: 'GAME_TASK_COMPLETED',
+    });
+
+    if (recorded) {
+      this.saveState();
+    }
+    return recorded;
+  }
+
+  /**
+   * Hint Used: −1 raw point deduction applied to Game section.
+   * Deducted once per unique task/hint key to prevent duplicate deductions on re-render.
+   */
+  public recordHintUsed(
+    topicId: string,
+    taskId: string,
+    hintId: string = 'default'
+  ): boolean {
+    const recorded = this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId,
+      activityType: 'GAME',
+      activityId: taskId,
+      attemptId: `hint_${hintId}`,
+      scoreDelta: -1,
+      reason: 'HINT_USED',
+    });
+
+    if (recorded) {
+      this.saveState();
+    }
+    return recorded;
+  }
+
+  /**
+   * Guided Solve Step Used: −2 raw points deduction applied to Game section.
+   * Deducted once per unique task step index to prevent duplicate deductions.
+   */
+  public recordGuidedSolveStepUsed(
+    topicId: string,
+    taskId: string,
+    stepNumber: number
+  ): boolean {
+    const recorded = this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId,
+      activityType: 'GAME',
+      activityId: taskId,
+      attemptId: `step_${stepNumber}`,
+      scoreDelta: -2,
+      reason: 'GUIDED_SOLVE_STEP',
+      metadata: { stepNumber },
+    });
+
+    if (recorded) {
+      this.saveState();
+    }
+    return recorded;
+  }
+
+  /**
+   * Quiz Question Answer:
+   * - Correct: +3 raw points
+   * - Incorrect: −1 raw point
+   * - Timeout: 0 points (no penalty, no reward)
+   * Prevents submitting the same question multiple times in the same attempt.
+   */
+  public recordQuizQuestionAnswer(
+    topicId: string,
+    questionId: number,
+    selectedOptionIndex: number,
+    isCorrect: boolean,
+    isTimeout: boolean,
+    attemptId: string = 'attempt_1'
+  ): boolean {
+    const scoreDelta = isTimeout ? 0 : isCorrect ? 3 : -1;
+    const reason = isTimeout
+      ? 'QUIZ_TIMEOUT'
+      : isCorrect
+      ? 'QUIZ_CORRECT'
+      : 'QUIZ_INCORRECT';
+
+    const recorded = this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId,
+      activityType: 'QUIZ',
+      activityId: String(questionId),
+      attemptId,
+      scoreDelta,
+      reason,
+      metadata: {
+        selectedOptionIndex,
+        isCorrect,
+        isTimeout,
+      },
+    });
+
+    if (recorded) {
+      if (!this.state.quizScores) {
+        this.state.quizScores = {};
+      }
+      this.state.quizScores[questionId] = selectedOptionIndex;
+      this.saveState();
+    }
+
+    return recorded;
+  }
+
+  // =========================================================================
+  // EXISTING METRICS (Preserved for compatibility)
+  // =========================================================================
   public getTheoryStats() {
     const list = Array.isArray(this.state.completedTheoryChapters)
       ? Array.from(new Set(this.state.completedTheoryChapters))
@@ -304,7 +905,6 @@ class ProgressManager {
     };
   }
 
-  // 2. VIDEO STATS (2 Video Lessons)
   public getVideoStats() {
     const list = Array.isArray(this.state.completedVideos) ? this.state.completedVideos : [];
     const isIntroCompleted = list.includes('lesson-01') || list.includes('introduction');
@@ -324,11 +924,9 @@ class ProgressManager {
     };
   }
 
-  // 3. GAME STATS (3 DLL Levels)
   public getGameStats() {
     let rawList = Array.isArray(this.state.levelsCompleted) ? [...this.state.levelsCompleted] : [];
 
-    // Check completed tasks from storage to ensure consistency across page reloads
     try {
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('dll_master_game_completed_tasks_v4');
@@ -361,7 +959,6 @@ class ProgressManager {
     };
   }
 
-  // 4. QUIZ STATS (1 Whole Quiz)
   public getQuizStats() {
     const isSubmitted = Boolean(this.state.quizSubmitted);
     const completed = isSubmitted ? 1 : 0;
@@ -378,7 +975,6 @@ class ProgressManager {
     };
   }
 
-  // ALL 12 MODULES
   public getModules(): ModuleRecord[] {
     const theoryDone = this.state.completedTheoryChapters || [];
     const levelsDone = this.state.levelsCompleted || [];
@@ -408,7 +1004,6 @@ class ProgressManager {
         progressPercent = 100;
       }
 
-      // Also support game level masteries for interactive modules
       if (m.id === 'fn-06-chaining' && levelsDone.includes(2)) {
         status = this.state.levelsMastered.includes(2) ? 'MASTERED' : 'COMPLETED';
         progressPercent = 100;
@@ -437,54 +1032,28 @@ class ProgressManager {
     });
   }
 
-  // OVERALL PROGRESS (18 Unique Activities)
   public getStats() {
-    const theory = this.getTheoryStats();
-    const video = this.getVideoStats();
-    const game = this.getGameStats();
-    const quiz = this.getQuizStats();
-
-    // Exactly 18 distinct measurable learning activities:
-    // 12 Theory Modules + 3 DLL Game Levels + 2 Videos + 1 Quiz
-    const total = 18;
-    const completed = theory.completed + video.completed + game.completed + quiz.completed;
-    const isAllComplete =
-      theory.completed === 12 &&
-      video.completed === 2 &&
-      game.completed === 3 &&
-      quiz.completed === 1;
-
-    // Strict 100% calculation: exactly 100% ONLY when every activity is finished
-    const percentage = isAllComplete
-      ? 100
-      : Math.min(99, Math.max(0, Math.round((completed / total) * 100)));
-
+    const summary = this.getTopicScoreSummary(this.activeTopicId);
     const modules = this.getModules();
     const mastered = modules.filter((m) => m.status === 'MASTERED').length;
-
-    // Find next unfinished module
     const currentUnfinished =
-      modules.find(
-        (m) => m.status === 'IN_PROGRESS' || m.status === 'NOT_STARTED'
-      ) || modules[modules.length - 1];
+      modules.find((m) => m.status === 'IN_PROGRESS' || m.status === 'NOT_STARTED') ||
+      modules[modules.length - 1];
 
     return {
-      total,
-      completed,
+      total: summary.totalModules + summary.sections.visualize.eligibleCount + summary.sections.game.eligibleCount + summary.sections.quiz.eligibleCount,
+      completed: summary.completedModules + summary.sections.visualize.completedCount + summary.sections.game.completedCount + summary.sections.quiz.completedCount,
       mastered,
-      percentage,
-      isAllComplete,
+      percentage: summary.completionPercentage,
+      isAllComplete: summary.completionPercentage === 100,
       nextModule: currentUnfinished,
-      theory,
-      video,
-      game,
-      quiz,
+      theory: this.getTheoryStats(),
+      video: this.getVideoStats(),
+      game: this.getGameStats(),
+      quiz: this.getQuizStats(),
     };
   }
 
-  // =========================================================================
-  // THEORY SPECIFIC PROGRESS (Idempotent & Exact)
-  // =========================================================================
   public isTheoryChapterCompleted(chapterId: string): boolean {
     const normalized = normalizeTheoryChapterId(chapterId);
     return (this.state.completedTheoryChapters || []).includes(normalized);
@@ -492,20 +1061,16 @@ class ProgressManager {
 
   public completeTheoryChapter(chapterId: string): boolean {
     const normalized = normalizeTheoryChapterId(chapterId);
-
     if (!this.state.completedTheoryChapters) {
       this.state.completedTheoryChapters = [];
     }
-
-    // Idempotent check: if already completed, do not re-add
     if (this.state.completedTheoryChapters.includes(normalized)) {
-      return false; // Already completed
+      return false;
     }
 
     this.state.completedTheoryChapters.push(normalized);
     this.state.currentTheoryChapterId = normalized;
 
-    // Synchronize underlying module ID
     const chapterToModuleMap: Record<string, string> = {
       'theory-01': 'fn-01-basics',
       'theory-02': 'fn-02-modulo',
@@ -526,8 +1091,18 @@ class ProgressManager {
       this.completeModule(targetModuleId);
     }
 
+    // Theory completion counts toward overall progress, awards 0 competition points
+    this.recordScoringEvent({
+      participantId: this.participantId,
+      topicId: 'dll',
+      activityType: 'LEARN',
+      activityId: normalized,
+      scoreDelta: 0,
+      reason: 'THEORY_COMPLETED',
+    });
+
     this.saveState();
-    return true; // Newly completed!
+    return true;
   }
 
   public setCurrentTheoryChapter(chapterId: string) {
@@ -536,29 +1111,6 @@ class ProgressManager {
     this.saveState();
   }
 
-  // =========================================================================
-  // VIDEO SPECIFIC PROGRESS (Idempotent & Independent)
-  // =========================================================================
-  public isVideoCompleted(videoId: string): boolean {
-    const list = this.state.completedVideos || [];
-    return list.includes(videoId);
-  }
-
-  public completeVideo(videoId: string): boolean {
-    if (!this.state.completedVideos) {
-      this.state.completedVideos = [];
-    }
-    if (this.state.completedVideos.includes(videoId)) {
-      return false; // Already completed
-    }
-    this.state.completedVideos.push(videoId);
-    this.saveState();
-    return true; // Newly completed!
-  }
-
-  // =========================================================================
-  // MODULE LEVEL METHODS
-  // =========================================================================
   public startModule(moduleId: string) {
     if (!this.state.modules[moduleId] || this.state.modules[moduleId] === 'NOT_STARTED') {
       this.state.modules[moduleId] = 'IN_PROGRESS';
@@ -591,7 +1143,7 @@ class ProgressManager {
     this.saveState();
   }
 
-  public markLevelCompleted(levelId: number, scoreAwarded: number = 100, isPerfect: boolean = false) {
+  public markLevelCompleted(levelId: number, _scoreAwarded: number = 0, isPerfect: boolean = false) {
     if (!this.state.levelsCompleted) {
       this.state.levelsCompleted = [];
     }
@@ -599,11 +1151,8 @@ class ProgressManager {
       this.state.levelsMastered = [];
     }
 
-    const wasAlreadyCompleted = this.state.levelsCompleted.includes(levelId);
-
-    if (!wasAlreadyCompleted) {
+    if (!this.state.levelsCompleted.includes(levelId)) {
       this.state.levelsCompleted.push(levelId);
-      this.state.totalScore = (this.state.totalScore || 0) + scoreAwarded;
     }
     if (isPerfect && !this.state.levelsMastered.includes(levelId)) {
       this.state.levelsMastered.push(levelId);
@@ -613,12 +1162,13 @@ class ProgressManager {
   }
 
   public addScore(points: number) {
-    this.state.totalScore = (this.state.totalScore || 0) + points;
+    this.state.totalScore = Math.min(100, (this.state.totalScore || 0) + points);
     this.saveState();
   }
 
   public getTotalScore(): number {
-    return this.state.totalScore || 0;
+    const summary = this.getTopicScoreSummary(this.activeTopicId);
+    return Math.round(summary.earnedScore);
   }
 
   public checkAndCompleteCertification() {
@@ -636,7 +1186,7 @@ class ProgressManager {
   public recordQuizCompletion(scores: Record<number, number>, correctCount: number, totalQuestions: number) {
     this.state.quizScores = scores;
     this.state.quizSubmitted = true;
-    const percentage = Math.round((correctCount / totalQuestions) * 100);
+    const percentage = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     this.state.quizFinalScore = percentage;
     this.saveState();
   }
@@ -670,10 +1220,14 @@ class ProgressManager {
         localStorage.removeItem('hash_quest_quiz_submitted_v3');
         localStorage.removeItem('dll_master_game_completed_tasks_v4');
         localStorage.removeItem('dsa_game_completed_tasks_v1');
+        localStorage.removeItem(SCORING_EVENTS_KEY);
       } catch {
         // Ignore storage errors
       }
     }
+
+    this.scoringEvents = [];
+    this.eventKeySet.clear();
 
     this.state = {
       version: 2,

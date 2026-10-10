@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { TechniqueType } from '../types/game';
 import { progressManager, normalizeTheoryChapterId } from '../utils/progressManager';
+import { pointsManager } from '../utils/pointsManager';
 import { soundManager } from '../utils/audio';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { TheoryVisualEnhancer } from './TheoryVisualEnhancer';
@@ -470,6 +471,9 @@ export const LearnHashingSection: React.FC<LearnHashingSectionProps> = ({
   const handleMarkAsRead = () => {
     soundManager.playSuccess();
     progressManager.completeTheoryChapter(activeChapter.id);
+    pointsManager.recordEvent('THEORY_MODULE_COMPLETED', activeChapter.id, {
+      moduleId: activeChapter.id,
+    });
   };
 
   const isCurrentChapterCompleted = completedChapters.includes(activeChapter.id);

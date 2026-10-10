@@ -56,20 +56,6 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
             <span className="text-xs font-mono font-bold text-[#2563EB] dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-3 py-1 rounded-xl border border-blue-100 dark:border-blue-900/40">
               {level.badge} • {level.title}
             </span>
-
-            {onResetGame && (
-              <button
-                id="btn-dll-tasks-reset"
-                type="button"
-                onClick={onResetGame}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-[#111827] hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-slate-200/90 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 text-slate-600 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 text-xs font-bold transition-all shadow-xs cursor-pointer"
-                title="Reset all game progress"
-                aria-label="Reset all game progress"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -149,8 +135,8 @@ export const DLLTaskSelectScreen: React.FC<DLLTaskSelectScreenProps> = ({
                 >
                   {isDone ? (
                     <>
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Replay Task</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Review Task</span>
                     </>
                   ) : (
                     <>

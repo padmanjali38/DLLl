@@ -1,0 +1,511 @@
+{
+  "participants": {
+    "student-alex-01": {
+      "userId": "student-alex-01",
+      "studentName": "Alex Chen",
+      "avatarSeed": "alex",
+      "theoryPoints": 18,
+      "videoPoints": 6,
+      "gamePoints": 36,
+      "quizPoints": 6,
+      "penaltyPoints": -3,
+      "totalPoints": 63,
+      "completedModules": [
+        "fn-01-basics",
+        "fn-02-modulo",
+        "fn-03-table",
+        "fn-04-lifecycle",
+        "fn-05-collision",
+        "fn-06-chaining",
+        "fn-07-linear",
+        "fn-08-quadratic",
+        "fn-09-double"
+      ],
+      "completedVideos": [
+        "lesson-01",
+        "lesson-02"
+      ],
+      "completedTasks": [
+        "l1-t1",
+        "l1-t2",
+        "l1-t3",
+        "l2-t1",
+        "l2-t2",
+        "l2-t3",
+        "l3-t1",
+        "l3-t2",
+        "l4-t1"
+      ],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791510158633
+        },
+        "2": {
+          "selectedIndex": 0,
+          "isCorrect": true,
+          "timestamp": 1791510258633
+        },
+        "3": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791510358633
+        },
+        "4": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791510458633
+        },
+        "5": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791510558633
+        },
+        "6": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791510658633
+        },
+        "7": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791510758633
+        },
+        "8": {
+          "selectedIndex": 0,
+          "isCorrect": false,
+          "timestamp": 1791510858633
+        }
+      },
+      "hintsUsed": [
+        "l2-t2-h1"
+      ],
+      "guidedStepsUsed": [
+        "l4-t1-s1"
+      ],
+      "lastActive": 1791510158633
+    },
+    "student-priya-02": {
+      "userId": "student-priya-02",
+      "studentName": "Priya Sharma",
+      "avatarSeed": "priya",
+      "theoryPoints": 20,
+      "videoPoints": 6,
+      "gamePoints": 28,
+      "quizPoints": 8,
+      "penaltyPoints": -1,
+      "totalPoints": 61,
+      "completedModules": [
+        "fn-01-basics",
+        "fn-02-modulo",
+        "fn-03-table",
+        "fn-04-lifecycle",
+        "fn-05-collision",
+        "fn-06-chaining",
+        "fn-07-linear",
+        "fn-08-quadratic",
+        "fn-09-double",
+        "fn-10-cluster"
+      ],
+      "completedVideos": [
+        "lesson-01",
+        "lesson-02"
+      ],
+      "completedTasks": [
+        "l1-t1",
+        "l1-t2",
+        "l1-t3",
+        "l2-t1",
+        "l2-t2",
+        "l2-t3",
+        "l3-t1"
+      ],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791506558633
+        },
+        "2": {
+          "selectedIndex": 0,
+          "isCorrect": true,
+          "timestamp": 1791506658633
+        },
+        "3": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791506758633
+        },
+        "4": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791506858633
+        },
+        "5": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791506958633
+        },
+        "6": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791507058633
+        },
+        "7": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791507158633
+        },
+        "8": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791507258633
+        }
+      },
+      "hintsUsed": [
+        "l1-t3-h1"
+      ],
+      "guidedStepsUsed": [],
+      "lastActive": 1791506558633
+    },
+    "student-marcus-03": {
+      "userId": "student-marcus-03",
+      "studentName": "Marcus Vance",
+      "avatarSeed": "marcus",
+      "theoryPoints": 14,
+      "videoPoints": 6,
+      "gamePoints": 32,
+      "quizPoints": 4,
+      "penaltyPoints": -4,
+      "totalPoints": 52,
+      "completedModules": [
+        "fn-01-basics",
+        "fn-02-modulo",
+        "fn-03-table",
+        "fn-04-lifecycle",
+        "fn-05-collision",
+        "fn-06-chaining",
+        "fn-07-linear"
+      ],
+      "completedVideos": [
+        "lesson-01",
+        "lesson-02"
+      ],
+      "completedTasks": [
+        "l1-t1",
+        "l1-t2",
+        "l1-t3",
+        "l2-t1",
+        "l2-t2",
+        "l2-t3",
+        "l3-t1",
+        "l3-t2"
+      ],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791502958633
+        },
+        "2": {
+          "selectedIndex": 0,
+          "isCorrect": true,
+          "timestamp": 1791503058633
+        },
+        "3": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791503158633
+        },
+        "4": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791503258633
+        },
+        "5": {
+          "selectedIndex": 1,
+          "isCorrect": false,
+          "timestamp": 1791503358633
+        },
+        "6": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791503458633
+        }
+      },
+      "hintsUsed": [
+        "l2-t1-h1",
+        "l3-t2-h1"
+      ],
+      "guidedStepsUsed": [
+        "l3-t2-s1"
+      ],
+      "lastActive": 1791502958633
+    },
+    "student-elena-04": {
+      "userId": "student-elena-04",
+      "studentName": "Elena Rostova",
+      "avatarSeed": "elena",
+      "theoryPoints": 16,
+      "videoPoints": 3,
+      "gamePoints": 24,
+      "quizPoints": 6,
+      "penaltyPoints": -2,
+      "totalPoints": 47,
+      "completedModules": [
+        "fn-01-basics",
+        "fn-02-modulo",
+        "fn-03-table",
+        "fn-04-lifecycle",
+        "fn-05-collision",
+        "fn-06-chaining",
+        "fn-07-linear",
+        "fn-08-quadratic"
+      ],
+      "completedVideos": [
+        "lesson-01"
+      ],
+      "completedTasks": [
+        "l1-t1",
+        "l1-t2",
+        "l1-t3",
+        "l2-t1",
+        "l2-t2",
+        "l2-t3"
+      ],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791499358633
+        },
+        "2": {
+          "selectedIndex": 0,
+          "isCorrect": true,
+          "timestamp": 1791499458633
+        },
+        "3": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791499558633
+        },
+        "4": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791499658633
+        },
+        "5": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791499758633
+        },
+        "6": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791499858633
+        }
+      },
+      "hintsUsed": [],
+      "guidedStepsUsed": [
+        "l2-t3-s1"
+      ],
+      "lastActive": 1791499358633
+    },
+    "student-devon-05": {
+      "userId": "student-devon-05",
+      "studentName": "Devon Lee",
+      "avatarSeed": "devon",
+      "theoryPoints": 10,
+      "videoPoints": 3,
+      "gamePoints": 20,
+      "quizPoints": 4,
+      "penaltyPoints": -1,
+      "totalPoints": 36,
+      "completedModules": [
+        "fn-01-basics",
+        "fn-02-modulo",
+        "fn-03-table",
+        "fn-04-lifecycle",
+        "fn-05-collision"
+      ],
+      "completedVideos": [
+        "lesson-01"
+      ],
+      "completedTasks": [
+        "l1-t1",
+        "l1-t2",
+        "l1-t3",
+        "l2-t1",
+        "l2-t2"
+      ],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791495758633
+        },
+        "2": {
+          "selectedIndex": 0,
+          "isCorrect": true,
+          "timestamp": 1791495858633
+        },
+        "3": {
+          "selectedIndex": 2,
+          "isCorrect": true,
+          "timestamp": 1791495958633
+        },
+        "4": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791496058633
+        }
+      },
+      "hintsUsed": [
+        "l1-t2-h1"
+      ],
+      "guidedStepsUsed": [],
+      "lastActive": 1791495758633
+    },
+    "student-current-user": {
+      "userId": "student-current-user",
+      "studentName": "Current Student",
+      "avatarSeed": "student-current-user",
+      "theoryPoints": 0,
+      "videoPoints": 0,
+      "gamePoints": 0,
+      "quizPoints": 0,
+      "penaltyPoints": 0,
+      "totalPoints": 0,
+      "completedModules": [],
+      "completedVideos": [],
+      "completedTasks": [],
+      "quizAnswers": {},
+      "hintsUsed": [],
+      "guidedStepsUsed": [],
+      "lastActive": 1791514105807
+    },
+    "test-student-user": {
+      "userId": "test-student-user",
+      "studentName": "Test Student",
+      "avatarSeed": "test-student-user",
+      "theoryPoints": 2,
+      "videoPoints": 3,
+      "gamePoints": 0,
+      "quizPoints": 1,
+      "penaltyPoints": -1,
+      "totalPoints": 5,
+      "completedModules": [
+        "fn-01-basics"
+      ],
+      "completedVideos": [
+        "lesson-01"
+      ],
+      "completedTasks": [],
+      "quizAnswers": {
+        "1": {
+          "selectedIndex": 1,
+          "isCorrect": true,
+          "timestamp": 1791514115105
+        }
+      },
+      "hintsUsed": [
+        "l1-t1-h1"
+      ],
+      "guidedStepsUsed": [],
+      "lastActive": 1791514115105
+    }
+  },
+  "events": [
+    {
+      "id": "evt-1791514115105-u8g6s",
+      "userId": "test-student-user",
+      "studentName": "Test Student",
+      "eventType": "QUIZ_ANSWER",
+      "activityName": "Quiz Question #1: Correct Answer",
+      "category": "Quiz",
+      "points": 1,
+      "timestamp": 1791514115105
+    },
+    {
+      "id": "evt-1791514115088-kz2w0",
+      "userId": "test-student-user",
+      "studentName": "Test Student",
+      "eventType": "HINT_USED",
+      "activityName": "Hint Used (Allocate & Initialize Head Node)",
+      "category": "Penalties",
+      "points": -1,
+      "timestamp": 1791514115088
+    },
+    {
+      "id": "evt-1791514115070-m5kn3",
+      "userId": "test-student-user",
+      "studentName": "Test Student",
+      "eventType": "VIDEO_LESSON_COMPLETED",
+      "activityName": "Video: What is DLL? & DLL Insertion",
+      "category": "Visualization",
+      "points": 3,
+      "timestamp": 1791514115070
+    },
+    {
+      "id": "evt-1791514115030-gcx09",
+      "userId": "test-student-user",
+      "studentName": "Test Student",
+      "eventType": "THEORY_MODULE_COMPLETED",
+      "activityName": "Theory: What is DLL? & Node Anatomy",
+      "category": "Theory",
+      "points": 2,
+      "timestamp": 1791514115030
+    },
+    {
+      "id": "evt-seed-1",
+      "userId": "student-alex-01",
+      "studentName": "Alex Chen",
+      "eventType": "GAME",
+      "activityName": "Locate Predecessor & Successor Nodes",
+      "category": "Games",
+      "points": 4,
+      "timestamp": 1791510158633
+    },
+    {
+      "id": "evt-seed-2",
+      "userId": "student-priya-02",
+      "studentName": "Priya Sharma",
+      "eventType": "THEORY",
+      "activityName": "Bi-Directional Search Optimization",
+      "category": "Theory",
+      "points": 2,
+      "timestamp": 1791507158633
+    },
+    {
+      "id": "evt-seed-3",
+      "userId": "student-alex-01",
+      "studentName": "Alex Chen",
+      "eventType": "QUIZ",
+      "activityName": "Quiz Question #7",
+      "category": "Quiz",
+      "points": 1,
+      "timestamp": 1791510758633
+    },
+    {
+      "id": "evt-seed-4",
+      "userId": "student-marcus-03",
+      "studentName": "Marcus Vance",
+      "eventType": "GUIDED_STEP",
+      "activityName": "Guided Step Assistance: Backward Traversal",
+      "category": "Penalties",
+      "points": -2,
+      "timestamp": 1791503458633
+    },
+    {
+      "id": "evt-seed-5",
+      "userId": "student-elena-04",
+      "studentName": "Elena Rostova",
+      "eventType": "VIDEO",
+      "activityName": "What is DLL? & DLL Insertion",
+      "category": "Visualization",
+      "points": 3,
+      "timestamp": 1791499358633
+    }
+  ]
+}

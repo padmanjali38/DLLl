@@ -203,66 +203,9 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             >
               {isMuted ? <VolumeX className="w-3.5 h-3.5 text-[#66625B]" /> : <Volume2 className="w-3.5 h-3.5 text-[#E85A1D]" />}
             </button>
-
-            {/* Reset Whole Progress to 0 Button */}
-            <button
-              id="btn-reset-all-progress"
-              onClick={() => setShowResetConfirmModal(true)}
-              title="Reset whole progress to 0"
-              aria-label="Reset whole progress to 0"
-              className="p-1 px-1.5 bg-[#FAF6EE] border border-[#181818]/30 text-[#66625B] hover:bg-red-50 hover:text-red-600 text-[11px] font-mono font-medium flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <RotateCcw className="w-3 h-3 text-red-600" />
-              <span>0%</span>
-            </button>
-
-            {/* Reset Level (if in GAME mode) */}
-            {isGameActive && (
-              <button
-                id="btn-reset-level"
-                onClick={() => {
-                  soundManager.playReset();
-                  onResetLevel();
-                }}
-                title="Restart Current Level"
-                className="p-1 bg-[#FAF6EE] border border-[#181818]/30 text-[#66625B] hover:text-[#181818] hover:bg-[#ECE5D8] cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
         </div>
       </div>
-
-      {/* Confirmation Modal to Reset All Progress to 0 */}
-      {showResetConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-[#FAF6EE] border-2 border-[#181818] p-6 max-w-md w-full shadow-[6px_6px_0px_#181818] font-mono space-y-4">
-            <div className="flex items-center gap-2 text-red-600 font-bold text-sm uppercase tracking-wider">
-              <RotateCcw className="w-5 h-5" />
-              <span>RESET WHOLE PROGRESS TO 0%</span>
-            </div>
-            <p className="text-xs sm:text-sm text-[#181818] leading-relaxed">
-              Are you sure you want to reset all progress? This will permanently clear all field notes completion, reset completed quest levels, clear quiz records, and reset your mastery progress.
-            </p>
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowResetConfirmModal(false)}
-                className="px-4 py-2 border border-[#181818] text-xs font-bold uppercase tracking-wider hover:bg-[#ECE5D8] cursor-pointer"
-              >
-                CANCEL
-              </button>
-              <button
-                id="btn-confirm-reset-all"
-                onClick={handleConfirmResetAll}
-                className="px-4 py-2 bg-red-600 text-white border border-[#181818] text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0px_#181818] hover:bg-red-700 cursor-pointer"
-              >
-                CONFIRM RESET (0%)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sub-bar: Level Selectors & Technique Info if in GAME mode */}
       {isGameActive && (

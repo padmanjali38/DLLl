@@ -10,7 +10,7 @@ export type TechniqueType =
   | 'insert_position'
   | 'delete_node';
 
-export type MainViewTab = 'HOME' | 'THEORY' | 'VIDEO' | 'GAME' | 'QUEST' | 'LAB' | 'QUIZ' | 'PROGRESS';
+export type MainViewTab = 'HOME' | 'THEORY' | 'VIDEO' | 'GAME' | 'QUEST' | 'LAB' | 'QUIZ' | 'PROGRESS' | 'POINTS';
 
 export interface VideoChapter {
   title: string;

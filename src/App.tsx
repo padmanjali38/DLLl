@@ -24,6 +24,7 @@ import { LearnHashingSection } from './components/LearnHashingSection';
 import { VideoTutorialsView } from './components/VideoTutorialsView';
 import { MyProgressView } from './components/MyProgressView';
 import { QuizView } from './components/QuizView';
+import { PointsDashboardView } from './components/PointsDashboardView';
 import { QuestCompletionView } from './components/QuestCompletionView';
 import { FieldNotesBackground } from './components/FieldNotesBackground';
 import { GameHintCard } from './components/GameHintCard';
@@ -748,6 +749,11 @@ export default function App() {
                   }
                 }}
               />
+            )}
+
+            {/* 7. POINTS & TOURNAMENT STANDINGS SECTION */}
+            {activeTab === 'POINTS' && (
+              <PointsDashboardView />
             )}
           </div>
         </main>

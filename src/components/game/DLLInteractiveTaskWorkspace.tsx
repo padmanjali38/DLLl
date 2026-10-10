@@ -27,6 +27,7 @@ import {
   arePointersEqual,
 } from './dllGameData';
 import { soundManager } from '../../utils/audio';
+import { progressManager } from '../../utils/progressManager';
 
 export interface HistorySnapshot {
   nodes: DLLNodeState[];
@@ -2199,6 +2200,9 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
     const stepObj = task.guidedSteps[nextStepIndex];
     const newStepNumber = nextStepIndex + 1;
 
+    // Deduct 2 raw points for each Guided Solve step actually used (deductions cannot duplicate)
+    progressManager.recordGuidedSolveStepUsed('dll', task.id, newStepNumber);
+
     soundManager.playClick();
 
     // Modify the REAL internal DLL data model according to the step
@@ -3882,14 +3886,22 @@ export const DLLInteractiveTaskWorkspace: React.FC<DLLInteractiveTaskWorkspacePr
             <span>UNDO</span>
           </button>
 
-          {/* Optional Hint Button */}
+          {/* Optional Hint Button (-1 raw point deduction, idempotent) */}
           <button
             type="button"
-            onClick={() => setShowHint((prev) => !prev)}
+            onClick={() => {
+              setShowHint((prev) => {
+                const next = !prev;
+                if (next) {
+                  progressManager.recordHintUsed('dll', task.id);
+                }
+                return next;
+              });
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 transition-colors cursor-pointer"
           >
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            <span>{showHint ? 'Hide Hint' : 'Hint'}</span>
+            <span>{showHint ? 'Hide Hint' : 'Hint (-1 pt)'}</span>
           </button>
 
           {/* Guided Solve Button (Visible when Guided Solve is not active) */}

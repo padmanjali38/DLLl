@@ -92,16 +92,6 @@ export const LevelSelectScreen: React.FC<LevelSelectScreenProps> = ({
             </div>
             <div className="flex justify-between items-center pt-1 text-xs">
               <span className="text-slate-500 dark:text-slate-400">{progressPercent}% Mastered (9 Tasks)</span>
-              {totalCompleted > 0 && (
-                <button
-                  onClick={onResetProgress}
-                  className="flex items-center gap-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer text-[11px]"
-                  title="Reset completed tasks"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Reset
-                </button>
-              )}
             </div>
           </div>
         </div>

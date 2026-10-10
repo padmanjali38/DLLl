@@ -398,17 +398,6 @@ export const RamHeapWorkspace: React.FC<RamHeapWorkspaceProps> = ({
             <span>Delete Node</span>
           </button>
 
-          {/* Reset */}
-          <button
-            id="btn-reset-workspace"
-            onClick={onReset}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
-            title="Reset to task initial state"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
-
           {/* Hint */}
           <button
             id="btn-tool-hint"

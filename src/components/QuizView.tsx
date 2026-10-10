@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CheckCircle2,
   XCircle,
   HelpCircle,
   Award,
-  RotateCcw,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -14,10 +13,12 @@ import {
   Check,
   Star,
   Layers,
-  ChevronRight,
   ListOrdered,
   Trophy,
   Home,
+  Clock,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { progressManager } from '../utils/progressManager';
 import { soundManager } from '../utils/audio';
@@ -50,6 +51,7 @@ export interface StudentAnswerRecord {
   correctOptionIndex: number;
   correctAnswerText: string;
   isCorrect: boolean;
+  isTimeout?: boolean;
 }
 
 export const QUIZ_QUESTIONS: QuizQuestion[] = [
@@ -58,170 +60,164 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     question: '1. What distinguishes a Doubly Linked List from a Singly Linked List?',
     options: [
       'It only stores integers instead of generic data types',
-      'Each node stores two pointers: prev to predecessor and next to successor',
-      'It is stored contiguously in CPU L1 cache',
-      'It cannot dynamically resize at runtime',
+      'Each node contains two pointers: one pointing forward (next) and one pointing backward (prev)',
+      'Nodes are stored in contiguous memory addresses like arrays',
+      'It does not require head or tail pointers',
     ],
     correctIndex: 1,
-    correctAnswerText: 'Each node stores two pointers: prev to predecessor and next to successor',
-    explanation:
-      'A Doubly Linked List node contains three fields: the payload data, a next pointer referencing the successor, and a prev pointer referencing the predecessor.',
-    techniqueCode: 'DLL-01',
-    targetChapterId: 'what-is-dll',
+    correctAnswerText: 'Each node contains two pointers: one pointing forward (next) and one pointing backward (prev)',
+    explanation: 'A Doubly Linked List equips every node with both a prev pointer and a next pointer, enabling O(1) bi-directional navigation, whereas Singly Linked Lists only permit forward movement.',
+    techniqueCode: 'FN-01',
+    targetChapterId: 'theory-01',
+    targetLevelId: 1,
   },
   {
     id: 2,
-    question: '2. What are the boundary invariants for head and tail nodes in a non-circular Doubly Linked List?',
+    question: '2. Why does deleting an arbitrary middle node in a Doubly Linked List take O(1) time when the node reference is given, compared to O(N) in a Singly Linked List?',
     options: [
-      'head.prev == null and tail.next == null',
-      'head.next == null and tail.prev == null',
-      'head == tail always',
-      'head.prev points to tail',
+      'Because nodes are indexed by integer keys in O(1)',
+      'Because the target node directly stores target.prev, eliminating the need to traverse from head to find the predecessor',
+      'Because DLL uses a hash map under the hood',
+      'Because deletion in DLL does not require updating any adjacent node pointers',
     ],
-    correctIndex: 0,
-    correctAnswerText: 'head.prev == null and tail.next == null',
-    explanation:
-      'In a linear non-circular Doubly Linked List, the head node has no predecessor (head.prev == null) and the tail node has no successor (tail.next == null).',
-    techniqueCode: 'DLL-02',
-    targetChapterId: 'head-tail-pointers',
+    correctIndex: 1,
+    correctAnswerText: 'Because the target node directly stores target.prev, eliminating the need to traverse from head to find the predecessor',
+    explanation: 'In a Singly Linked List, you must linearly traverse from head to find the preceding node before you can rewire pointers (O(N)). In a DLL, target.prev gives direct constant-time access to the predecessor, allowing immediate O(1) rewiring.',
+    techniqueCode: 'FN-09',
+    targetChapterId: 'theory-09',
+    targetLevelId: 3,
   },
   {
     id: 3,
-    question: '3. What is the time complexity of inserting a new node at the head of a Doubly Linked List?',
+    question: '3. What are the values of head.prev and tail.next in a valid Doubly Linked List with at least one node?',
     options: [
-      'O(N) linear time',
-      'O(log N) logarithmic time',
-      'O(1) constant time',
-      'O(N²) quadratic time',
+      'head.prev = head and tail.next = tail (self-looping)',
+      'Both pointers must be NULL (or undefined in untyped environments) to designate boundary termination',
+      'head.prev = tail and tail.next = head (circular list)',
+      'head.prev points to the middle node and tail.next points to head',
     ],
-    correctIndex: 2,
-    correctAnswerText: 'O(1) constant time',
-    explanation:
-      'Inserting at the head requires only updating the new node pointers, pointing old head.prev to newNode, and reassigning the head reference in O(1) constant time.',
-    techniqueCode: 'DLL-03',
-    targetChapterId: 'insert-head',
+    correctIndex: 1,
+    correctAnswerText: 'Both pointers must be NULL (or undefined in untyped environments) to designate boundary termination',
+    explanation: 'In a standard linear Doubly Linked List, head.prev is strictly NULL (signaling the start) and tail.next is strictly NULL (signaling the end). In a single-node list, head === tail, so both prev and next are NULL.',
+    techniqueCode: 'FN-03',
+    targetChapterId: 'theory-03',
     targetLevelId: 1,
   },
   {
     id: 4,
-    question: '4. Why is deleting the tail node in a Doubly Linked List O(1) if a tail pointer is maintained, whereas in a Singly Linked List it is O(N)?',
+    question: '4. What is the correct 3-step pointer sequence for inserting a newNode at the head of a non-empty Doubly Linked List?',
     options: [
-      'Singly Linked Lists do not support dynamic heap memory allocation',
-      'In a DLL, tail.prev gives direct access to the new tail without traversing from the head',
-      'Doubly Linked Lists are sorted automatically',
-      'Tail nodes are cached in CPU registers',
+      'head.next = newNode; newNode.prev = head; head = newNode;',
+      'newNode.next = head; head.prev = newNode; head = newNode;',
+      'newNode.prev = head; head.next = newNode; tail = newNode;',
+      'head = newNode; newNode.next = head.prev; head.prev = null;',
     ],
     correctIndex: 1,
-    correctAnswerText: 'In a DLL, tail.prev gives direct access to the new tail without traversing from the head',
-    explanation:
-      'In a Singly Linked List, reaching the second-to-last node requires an O(N) scan from head. In a DLL, tail.prev gives instant O(1) access to update tail = tail.prev and tail.next = null.',
-    techniqueCode: 'DLL-04',
-    targetChapterId: 'delete-head-tail',
+    correctAnswerText: 'newNode.next = head; head.prev = newNode; head = newNode;',
+    explanation: 'First, wire the new node forward to current head (newNode.next = head). Second, wire existing head back to new node (head.prev = newNode). Finally, update the list boundary head reference (head = newNode).',
+    techniqueCode: 'FN-05',
+    targetChapterId: 'theory-05',
     targetLevelId: 2,
   },
   {
     id: 5,
-    question: '5. When inserting a new node between two existing nodes (A and B), how many pointer updates are required?',
+    question: '5. When appending a newNode to the tail of a non-empty Doubly Linked List in O(1) time, which sequence is correct?',
     options: [
-      '1 pointer update',
-      '2 pointer updates',
-      '4 pointer updates (newNode.prev, newNode.next, A.next, B.prev)',
-      '8 pointer updates',
+      'newNode.prev = tail; tail.next = newNode; tail = newNode;',
+      'tail = newNode; newNode.next = tail; tail.prev = null;',
+      'tail.prev = newNode; newNode.next = tail; head = newNode;',
+      'newNode.next = null; head.prev = newNode; tail = newNode;',
     ],
-    correctIndex: 2,
-    correctAnswerText: '4 pointer updates (newNode.prev, newNode.next, A.next, B.prev)',
-    explanation:
-      'Middle insertion requires connecting newNode forward to B (newNode.next = B), newNode backward to A (newNode.prev = A), A forward to newNode (A.next = newNode), and B backward to newNode (B.prev = newNode).',
-    techniqueCode: 'DLL-05',
-    targetChapterId: 'insert-position',
-    targetLevelId: 4,
+    correctIndex: 0,
+    correctAnswerText: 'newNode.prev = tail; tail.next = newNode; tail = newNode;',
+    explanation: 'To append in O(1), wire newNode.prev back to existing tail, wire existing tail.next forward to newNode, and advance the tail pointer to newNode.',
+    techniqueCode: 'FN-06',
+    targetChapterId: 'theory-06',
+    targetLevelId: 2,
   },
   {
     id: 6,
-    question: '6. What are the two essential pointer bypass statements for deleting a middle node target?',
+    question: '6. Inserting a newNode between two nodes (A and B) requires updating exactly how many pointers in a Doubly Linked List?',
     options: [
-      'target.next = null; target.prev = null;',
-      'target.prev.next = target.next; target.next.prev = target.prev;',
-      'head = target.next; tail = target.prev;',
-      'target.next = target.prev;',
+      '2 pointers: only the next pointers of A and newNode',
+      '4 pointers: A.next, newNode.prev, newNode.next, and B.prev',
+      '6 pointers: including head and tail boundaries',
+      '1 pointer: by swapping the data payload',
     ],
     correctIndex: 1,
-    correctAnswerText: 'target.prev.next = target.next; target.next.prev = target.prev;',
-    explanation:
-      'The target node is bypassed by wiring its predecessor forward to its successor (target.prev.next = target.next) and wiring its successor backward to its predecessor (target.next.prev = target.prev).',
-    techniqueCode: 'DLL-06',
-    targetChapterId: 'delete-node',
-    targetLevelId: 5,
+    correctAnswerText: '4 pointers: A.next, newNode.prev, newNode.next, and B.prev',
+    explanation: 'Inserting between A and B requires a 4-pointer rewire: newNode.next = B; newNode.prev = A; A.next = newNode; and B.prev = newNode.',
+    techniqueCode: 'FN-07',
+    targetChapterId: 'theory-07',
+    targetLevelId: 2,
   },
   {
     id: 7,
-    question: '7. How can bi-directional traversal optimize element access by index k in an N-element Doubly Linked List?',
+    question: '7. What happens when deleting the head node in a Doubly Linked List with multiple nodes?',
     options: [
-      'It converts linear search into binary search in O(log N)',
-      'If k < N/2, traverse forward from head; if k >= N/2, traverse backward from tail, cutting max steps in half',
-      'It provides instant O(1) random array indexing',
-      'It eliminates memory lookups',
+      'head = head.next; head.prev = null; (and free old head memory)',
+      'tail = tail.prev; tail.next = null;',
+      'head = null; tail = null;',
+      'head.next = null; tail.prev = null;',
     ],
-    correctIndex: 1,
-    correctAnswerText: 'If k < N/2, traverse forward from head; if k >= N/2, traverse backward from tail, cutting max steps in half',
-    explanation:
-      'Because traversal can start from either head or tail, picking the closest end halves the worst-case number of pointer hops (at most N/2 steps).',
-    techniqueCode: 'DLL-07',
-    targetChapterId: 'bidirectional-traversal',
+    correctIndex: 0,
+    correctAnswerText: 'head = head.next; head.prev = null; (and free old head memory)',
+    explanation: 'To delete the head, advance head to head.next, sever the backward reference by setting new head.prev = null, and deallocate the old head node.',
+    techniqueCode: 'FN-08',
+    targetChapterId: 'theory-08',
     targetLevelId: 3,
   },
   {
     id: 8,
-    question: '8. In an LRU (Least Recently Used) Cache, why is a Doubly Linked List paired with a Hash Map?',
+    question: '8. How is a middle node target safely bypassed and deleted from a Doubly Linked List?',
     options: [
-      'The Hash Map sorts keys, while the DLL encrypts values',
-      'The Hash Map gives O(1) lookup, while the DLL allows O(1) removal and head-promotion of recently accessed nodes',
-      'The DLL compresses memory for the Hash Map',
-      'To prevent memory fragmentation in arrays',
+      'target.prev = null; target.next = null;',
+      'target.prev.next = target.next; target.next.prev = target.prev; (and free target)',
+      'head = target.next; tail = target.prev;',
+      'target.next = target.prev; target.prev = target.next;',
     ],
     correctIndex: 1,
-    correctAnswerText: 'The Hash Map gives O(1) lookup, while the DLL allows O(1) removal and head-promotion of recently accessed nodes',
-    explanation:
-      'A Hash Map provides O(1) key-to-node lookup, and the Doubly Linked List enables O(1) detachment and re-attachment of nodes at the head upon access without traversing.',
-    techniqueCode: 'DLL-08',
-    targetChapterId: 'real-world-applications',
+    correctAnswerText: 'target.prev.next = target.next; target.next.prev = target.prev; (and free target)',
+    explanation: 'To bypass target node, connect target predecessor forward to target successor (target.prev.next = target.next) and connect target successor backward to target predecessor (target.next.prev = target.prev).',
+    techniqueCode: 'FN-09',
+    targetChapterId: 'theory-09',
+    targetLevelId: 3,
   },
   {
     id: 9,
-    question: '9. What is the primary memory trade-off of a Doubly Linked List compared to an Array or Singly Linked List?',
+    question: '9. Which software design pattern or feature commonly utilizes a Doubly Linked List in production architectures?',
     options: [
-      'DLL nodes cannot hold objects',
-      'Each node incurs 2x pointer overhead (16 bytes on 64-bit systems) and lower CPU cache locality due to heap fragmentation',
-      'DLLs cannot grow beyond a fixed capacity',
-      'DLLs require hardware GPU acceleration',
+      'LRU (Least Recently Used) Cache combined with a Hash Map, and Browser History Forward/Back navigation',
+      'CPU L1 hardware instruction registers',
+      'Relational Database primary B-Tree page indexing',
+      'Static immutable constant lookup arrays',
     ],
-    correctIndex: 1,
-    correctAnswerText: 'Each node incurs 2x pointer overhead (16 bytes on 64-bit systems) and lower CPU cache locality due to heap fragmentation',
-    explanation:
-      'Storing both prev and next pointers requires 16 bytes of metadata per node on 64-bit architectures, and non-contiguous heap allocation leads to higher CPU cache misses during sequential traversal.',
-    techniqueCode: 'DLL-09',
-    targetChapterId: 'limitations-tradeoffs',
+    correctIndex: 0,
+    correctAnswerText: 'LRU (Least Recently Used) Cache combined with a Hash Map, and Browser History Forward/Back navigation',
+    explanation: 'LRU Cache requires O(1) removal and insertion of most/least recently accessed items, which a DLL enables when paired with a Hash Map. Browser Forward/Back history also relies on bi-directional node traversal.',
+    techniqueCode: 'FN-10',
+    targetChapterId: 'theory-10',
   },
   {
     id: 10,
-    question: '10. Which real-world software feature natively relies on bi-directional linked list traversal?',
+    question: '10. What is the main memory trade-off of a Doubly Linked List compared to a Singly Linked List?',
     options: [
-      'Browser History (Forward and Back button navigation)',
-      'Database B-Tree indexing',
-      'Floating-point arithmetic unit',
-      'DNS IP resolution',
+      'DLL requires O(N^2) space complexity',
+      'Each DLL node incurs an additional pointer overhead (typically 8 bytes on a 64-bit architecture for prev pointer) per node',
+      'DLL nodes cannot store numeric values',
+      'DLL cannot be dynamically resized on the heap',
     ],
-    correctIndex: 0,
-    correctAnswerText: 'Browser History (Forward and Back button navigation)',
-    explanation:
-      'Web browsers model history using a Doubly Linked List: Back accesses curr.prev, Forward accesses curr.next, and visiting a new page appends a new node.',
-    techniqueCode: 'DLL-10',
-    targetChapterId: 'real-world-applications',
+    correctIndex: 1,
+    correctAnswerText: 'Each DLL node incurs an additional pointer overhead (typically 8 bytes on a 64-bit architecture for prev pointer) per node',
+    explanation: 'Every DLL node maintains two memory addresses (prev and next). On 64-bit architectures, this extra pointer adds 8 bytes per node compared to Singly Linked Lists, while both retain O(N) space complexity.',
+    techniqueCode: 'FN-12',
+    targetChapterId: 'theory-12',
   },
 ];
 
-const QUIZ_STORAGE_ANSWERS_KEY = 'hash_quest_quiz_answers_v3';
-const QUIZ_STORAGE_SUBMITTED_KEY = 'hash_quest_quiz_submitted_v3';
+const QUIZ_STORAGE_ANSWERS_KEY = 'algolearn_quiz_answers_v4';
+const QUIZ_STORAGE_SUBMITTED_KEY = 'algolearn_quiz_submitted_v4';
+const QUESTION_TIME_LIMIT_SECONDS = 20;
 
 export const QuizView: React.FC<QuizViewProps> = ({
   onNavigateToTheory,
@@ -231,106 +227,160 @@ export const QuizView: React.FC<QuizViewProps> = ({
 }) => {
   useScrollReveal();
 
-  // Load persisted student answers
+  // Load persisted answers
   const [studentAnswers, setStudentAnswers] = useState<Record<number, StudentAnswerRecord>>(() => {
     try {
       const stored = localStorage.getItem(QUIZ_STORAGE_ANSWERS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
+      return stored ? JSON.parse(stored) : {};
     } catch {
-      // fallback
+      return {};
     }
-    return {};
   });
 
+  // Load submission status
   const [isSubmitted, setIsSubmitted] = useState<boolean>(() => {
     try {
       const storedSub = localStorage.getItem(QUIZ_STORAGE_SUBMITTED_KEY);
-      if (storedSub !== null) {
-        return storedSub === 'true';
-      }
+      if (storedSub !== null) return storedSub === 'true';
       return progressManager.getState().quizSubmitted || false;
     } catch {
       return false;
     }
   });
 
-  // Subscribe to progressManager for reset synchronization
-  useEffect(() => {
-    const unsub = progressManager.subscribe((pState) => {
-      if (!pState.quizSubmitted) {
-        setIsSubmitted(false);
-        try {
-          const stored = localStorage.getItem(QUIZ_STORAGE_ANSWERS_KEY);
-          if (!stored) {
-            setStudentAnswers({});
-          }
-        } catch {
-          // Ignore
-        }
-      }
-    });
-    return unsub;
-  }, []);
-
   // Navigation within Quiz (0-indexed current question)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  // Temporary selection before confirming/submitting the question
   const [pendingSelection, setPendingSelection] = useState<number | null>(null);
 
-  // Current question helper
+  // Per-question countdown timer state
+  const [timeLeft, setTimeLeft] = useState<number>(QUESTION_TIME_LIMIT_SECONDS);
+  const isSubmittingRef = useRef<boolean>(false);
+
   const currentQuestion = QUIZ_QUESTIONS[currentQuestionIndex] || QUIZ_QUESTIONS[0];
   const currentAnswerRecord = studentAnswers[currentQuestion.id];
   const isCurrentQuestionAnswered = currentAnswerRecord !== undefined;
 
-  // Synchronize selection with current question record
+  // Sync selection with current question record
   useEffect(() => {
     if (currentAnswerRecord !== undefined) {
-      setPendingSelection(currentAnswerRecord.selectedOptionIndex);
+      setPendingSelection(currentAnswerRecord.selectedOptionIndex >= 0 ? currentAnswerRecord.selectedOptionIndex : null);
     } else {
       setPendingSelection(null);
     }
   }, [currentQuestionIndex, currentAnswerRecord]);
 
-  // Persist answers to localStorage whenever they change
+  // Persist answers
   useEffect(() => {
     try {
       localStorage.setItem(QUIZ_STORAGE_ANSWERS_KEY, JSON.stringify(studentAnswers));
     } catch {
-      // Ignore storage errors
+      // Ignore
     }
   }, [studentAnswers]);
 
-  // Calculate score deterministically from stored answers
-  const { score, totalQuestions, percentage } = useMemo(() => {
+  // =========================================================================
+  // PER-QUESTION TIMER ENGINE (20 Seconds Per Question)
+  // =========================================================================
+  useEffect(() => {
+    if (isSubmitted || isCurrentQuestionAnswered) {
+      setTimeLeft(0);
+      return;
+    }
+
+    // Reset countdown to 20 seconds for this question
+    setTimeLeft(QUESTION_TIME_LIMIT_SECONDS);
+    isSubmittingRef.current = false;
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleQuestionTimeout(currentQuestion.id);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentQuestion.id, isCurrentQuestionAnswered, isSubmitted]);
+
+  // Handle Timeout when 20s expires: 0 points awarded, no penalty, recorded as unanswered
+  const handleQuestionTimeout = (qId: number) => {
+    if (isSubmittingRef.current || studentAnswers[qId] !== undefined) return;
+    isSubmittingRef.current = true;
+
+    soundManager.playError();
+    const q = QUIZ_QUESTIONS.find((item) => item.id === qId) || currentQuestion;
+
+    const timeoutRecord: StudentAnswerRecord = {
+      questionId: q.id,
+      selectedOptionIndex: -1,
+      selectedAnswerText: 'Unanswered (Timed out)',
+      correctOptionIndex: q.correctIndex,
+      correctAnswerText: q.correctAnswerText,
+      isCorrect: false,
+      isTimeout: true,
+    };
+
+    setStudentAnswers((prev) => ({
+      ...prev,
+      [q.id]: timeoutRecord,
+    }));
+
+    // Record timeout in progressManager: scoreDelta = 0, no penalty!
+    progressManager.recordQuizQuestionAnswer('dll', q.id, -1, false, true);
+
+    // Auto-advance to next question if not the final question
+    setTimeout(() => {
+      if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
+        setCurrentQuestionIndex((curr) => curr + 1);
+      }
+    }, 1200);
+  };
+
+  // Calculate score deterministically according to exact scoring rules
+  // Correct: +3, Incorrect: -1, Timeout: 0
+  const { score, totalQuestions, percentage, correctCount, incorrectCount, timeoutCount, rawNetScore } = useMemo(() => {
     let correct = 0;
+    let incorrect = 0;
+    let timeout = 0;
+
     QUIZ_QUESTIONS.forEach((q) => {
       const rec = studentAnswers[q.id];
-      if (rec && rec.isCorrect) {
-        correct++;
+      if (rec) {
+        if (rec.isCorrect) correct++;
+        else if (rec.isTimeout) timeout++;
+        else incorrect++;
       }
     });
+
     const total = QUIZ_QUESTIONS.length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const rawNet = Math.max(0, correct * 3 - incorrect * 1);
+
     return {
       score: correct,
       totalQuestions: total,
       percentage: pct,
-      correctAnswersCount: correct,
+      correctCount: correct,
+      incorrectCount: incorrect,
+      timeoutCount: timeout,
+      rawNetScore: rawNet,
     };
   }, [studentAnswers]);
 
-  // Handle student selecting an option (before or during answering)
+  // Option select
   const handleSelectOption = (optionIndex: number) => {
-    if (isCurrentQuestionAnswered && isSubmitted) return;
+    if (isCurrentQuestionAnswered || isSubmitted) return;
     soundManager.playQuizSelect();
     setPendingSelection(optionIndex);
   };
 
-  // Handle confirming answer for current question (Records answer without revealing final result screen)
+  // Confirm Answer: +3 for correct, -1 for incorrect
   const handleConfirmAnswer = () => {
-    if (pendingSelection === null || isCurrentQuestionAnswered) return;
+    if (pendingSelection === null || isCurrentQuestionAnswered || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     const q = currentQuestion;
     const isCorrect = pendingSelection === q.correctIndex;
@@ -343,6 +393,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
       correctOptionIndex: q.correctIndex,
       correctAnswerText: q.correctAnswerText,
       isCorrect,
+      isTimeout: false,
     };
 
     const updatedAnswers = {
@@ -352,7 +403,9 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
     setStudentAnswers(updatedAnswers);
 
-    // Play appropriate interaction sound
+    // Record scoring event in progressManager (+3 for correct, -1 for incorrect)
+    progressManager.recordQuizQuestionAnswer('dll', q.id, pendingSelection, isCorrect, false);
+
     if (isCorrect) {
       soundManager.playQuizCorrect();
     } else {
@@ -360,9 +413,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
     }
   };
 
-  // Handle submitting the entire examination ONLY when user clicks "Complete & Review"
+  // Submit complete quiz
   const handleSubmitExamination = () => {
-    // If pending selection on current question is not saved yet, save it
     const updatedAnswers = { ...studentAnswers };
     if (pendingSelection !== null && !updatedAnswers[currentQuestion.id]) {
       const q = currentQuestion;
@@ -375,36 +427,42 @@ export const QuizView: React.FC<QuizViewProps> = ({
         correctOptionIndex: q.correctIndex,
         correctAnswerText: q.correctAnswerText,
         isCorrect,
+        isTimeout: false,
       };
       updatedAnswers[q.id] = newRecord;
       setStudentAnswers(updatedAnswers);
+      progressManager.recordQuizQuestionAnswer('dll', q.id, pendingSelection, isCorrect, false);
     }
 
-    const totalAnswered = Object.keys(updatedAnswers).length;
-    if (totalAnswered < QUIZ_QUESTIONS.length) {
-      soundManager.playError();
-      const firstUnansweredIndex = QUIZ_QUESTIONS.findIndex((quest) => updatedAnswers[quest.id] === undefined);
-      if (firstUnansweredIndex >= 0) {
-        setCurrentQuestionIndex(firstUnansweredIndex);
+    // Fill any skipped questions as timed out (0 points)
+    QUIZ_QUESTIONS.forEach((q) => {
+      if (!updatedAnswers[q.id]) {
+        updatedAnswers[q.id] = {
+          questionId: q.id,
+          selectedOptionIndex: -1,
+          selectedAnswerText: 'Unanswered',
+          correctOptionIndex: q.correctIndex,
+          correctAnswerText: q.correctAnswerText,
+          isCorrect: false,
+          isTimeout: true,
+        };
+        progressManager.recordQuizQuestionAnswer('dll', q.id, -1, false, true);
       }
-      return;
-    }
+    });
 
     setIsSubmitted(true);
     try {
       localStorage.setItem(QUIZ_STORAGE_SUBMITTED_KEY, 'true');
     } catch {
-      // Ignore storage errors
+      // Ignore
     }
 
-    // Calculate final correct score
     let calculatedCorrect = 0;
     QUIZ_QUESTIONS.forEach((q) => {
       const rec = updatedAnswers[q.id];
       if (rec && rec.isCorrect) calculatedCorrect++;
     });
 
-    // Synchronize with progressManager
     const rawScoresMap: Record<number, number> = {};
     (Object.values(updatedAnswers) as StudentAnswerRecord[]).forEach((rec) => {
       rawScoresMap[rec.questionId] = rec.selectedOptionIndex;
@@ -419,44 +477,44 @@ export const QuizView: React.FC<QuizViewProps> = ({
     }
   };
 
-  // Handle resetting the quiz completely
-  const handleResetQuiz = () => {
-    soundManager.playReset();
-    setStudentAnswers({});
-    setIsSubmitted(false);
-    setCurrentQuestionIndex(0);
-    setPendingSelection(null);
-
-    try {
-      localStorage.removeItem(QUIZ_STORAGE_ANSWERS_KEY);
-      localStorage.setItem(QUIZ_STORAGE_SUBMITTED_KEY, 'false');
-    } catch {
-      // Ignore
-    }
-
-    progressManager.resetQuizAttempt();
-  };
-
   const answeredCount = Object.keys(studentAnswers).length;
 
   return (
-    <div className="w-full max-w-4xl mx-auto py-4 px-4 font-sans text-slate-900 dark:text-white animate-page-enter">
+    <div className="w-full max-w-4xl mx-auto py-4 px-4 font-sans text-slate-900 dark:text-white animate-page-enter pb-16">
       {/* Header Banner */}
-      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl pb-6 mb-6 bg-white dark:bg-[#111827] p-6 sm:p-8 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] reveal-on-scroll">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-3xl pb-6 mb-6 bg-white dark:bg-[#111827] p-6 sm:p-8 shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] reveal-on-scroll">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-slate-800 text-[#2563EB] dark:text-blue-300 rounded-lg text-xs font-semibold uppercase tracking-wider font-mono">
             <ShieldCheck className="w-3.5 h-3.5 text-[#2563EB] dark:text-blue-400" />
-            <span>Knowledge Assessment</span>
+            <span>Quiz Assessment Section</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Doubly Linked List Quiz (10 Questions)
-            </span>
-            {isSubmitted && (
-              <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-md text-xs font-semibold">
-                Completed
-              </span>
+
+          <div className="flex items-center gap-3">
+            {/* Live Per-Question Timer Indicator */}
+            {!isSubmitted && (
+              <div
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-mono font-bold border transition-all ${
+                  isCurrentQuestionAnswered
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                    : timeLeft <= 5
+                    ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 animate-pulse'
+                    : 'bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-300 border-blue-200 dark:border-blue-900/60'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>
+                  {isCurrentQuestionAnswered
+                    ? currentAnswerRecord?.isTimeout
+                      ? 'Time Expired'
+                      : 'Answered'
+                    : `Time Left: ${timeLeft}s`}
+                </span>
+              </div>
             )}
+
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              10 Questions (+3 / -1)
+            </span>
           </div>
         </div>
 
@@ -464,7 +522,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
           Doubly Linked List Mastery Quiz
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300 max-w-2xl mt-1 leading-relaxed">
-          Test your understanding of Doubly Linked Lists, bi-directional pointers, head and tail invariants, insertions, deletions, and dual-direction traversals.
+          Test your understanding with 20 seconds per question. Correct answers award +3 raw points, incorrect answers deduct 1 raw point, and timed-out questions award 0 points.
         </p>
 
         {/* Question Index Tabs / Progress Tracker */}
@@ -473,7 +531,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-[#2563EB] dark:text-blue-400" />
               <span>
-                Progress: <strong className="text-[#2563EB] dark:text-blue-300 font-mono">{answeredCount}</strong> / {totalQuestions} Answered
+                Progress: <strong className="text-[#2563EB] dark:text-blue-300 font-mono">{answeredCount}</strong> / {totalQuestions} Completed
               </span>
             </div>
             {isSubmitted && (
@@ -490,14 +548,21 @@ export const QuizView: React.FC<QuizViewProps> = ({
               const isAnswered = rec !== undefined;
               const isCurrent = currentQuestionIndex === idx && !isSubmitted;
 
-              let pillStyle = 'bg-slate-50 dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-[#1E293B]';
+              let pillStyle =
+                'bg-slate-50 dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-[#1E293B]';
               if (isCurrent) {
-                pillStyle = 'bg-primary-gradient text-white border-transparent font-bold shadow-xs shadow-primary-gradient';
+                pillStyle =
+                  'bg-primary-gradient text-white border-transparent font-bold shadow-xs shadow-primary-gradient';
               } else if (isAnswered) {
                 if (rec.isCorrect) {
-                  pillStyle = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold';
+                  pillStyle =
+                    'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30 font-semibold';
+                } else if (rec.isTimeout) {
+                  pillStyle =
+                    'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30 font-semibold';
                 } else {
-                  pillStyle = 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-500/30 font-semibold';
+                  pillStyle =
+                    'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-500/30 font-semibold';
                 }
               }
 
@@ -509,20 +574,18 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     soundManager.playNav();
                     if (isSubmitted) {
                       const el = document.getElementById(`quiz-review-card-${q.id}`);
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      }
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } else {
                       setCurrentQuestionIndex(idx);
                     }
                   }}
-                  className={`py-2 text-center text-xs font-mono rounded-lg border transition-all cursor-pointer ${pillStyle}`}
+                  className={`py-2 text-center text-xs font-mono rounded-xl border transition-all cursor-pointer ${pillStyle}`}
                   title={`Question ${idx + 1}`}
                 >
                   <span>Q{idx + 1}</span>
                   {isAnswered && (
                     <span className="block text-[10px] leading-tight mt-0.5">
-                      {rec.isCorrect ? '✓' : '✕'}
+                      {rec.isCorrect ? '✓' : rec.isTimeout ? '⏱' : '✕'}
                     </span>
                   )}
                 </button>
@@ -532,116 +595,103 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </div>
       </div>
 
-      {/* QUIZ COMPLETION VIEW (Displayed ONLY after Complete & Review is clicked) */}
+      {/* =========================================================================
+          QUIZ COMPLETION VIEW (WHEN SUBMITTED) — NO RESET / RETAKE BUTTONS
+          ========================================================================= */}
       {isSubmitted ? (
         <div className="space-y-8">
-          {/* 1. Existing Quiz Assessment Completed Section (Completely Unchanged) */}
           <div
             id="quiz-result-card"
             className="p-6 sm:p-10 lg:p-12 bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col items-center justify-center text-center animate-editorial-scale transition-all"
           >
-            {/* 1. Top Achievement Trophy Icon */}
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-[#00A86B] dark:bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 dark:shadow-emerald-950/50 mx-auto mb-4 sm:mb-5">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-[#00A86B] dark:bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 dark:shadow-emerald-950/50 mx-auto mb-4">
               <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[2.2]" />
             </div>
 
-            {/* 2. Achievement Badge */}
-            <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-[#00A86B]/40 dark:border-emerald-500/40 bg-[#E6F8F0] dark:bg-emerald-950/60 text-[#008A54] dark:text-emerald-300 font-mono text-[11px] sm:text-xs font-bold tracking-wider uppercase mb-3 sm:mb-4">
-              ★ OUTSTANDING MASTERY (GRADE A+) ★
+            <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-[#00A86B]/40 dark:border-emerald-500/40 bg-[#E6F8F0] dark:bg-emerald-950/60 text-[#008A54] dark:text-emerald-300 font-mono text-[11px] sm:text-xs font-bold tracking-wider uppercase mb-3">
+              ★ ASSESSMENT COMPLETED ★
             </div>
 
-            {/* 3. Main Completion Heading */}
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#0B192C] dark:text-white tracking-tight uppercase mb-3">
-              QUIZ ASSESSMENT COMPLETED
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight uppercase mb-2">
+              QUIZ ASSESSMENT RESULTS
             </h2>
 
-            {/* 4. Supporting Description */}
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed font-normal mb-6 sm:mb-8">
-              Incredible performance! You demonstrated thorough command of Stack operations and algorithmic constraints.
+            <p className="text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto leading-relaxed mb-6">
+              Your responses have been recorded in the persistent ledger. Points are normalized to your overall topic competition score.
             </p>
 
-            {/* 5. Large Highlighted Score Card */}
-            <div className="w-full max-w-md mx-auto p-6 sm:p-8 bg-white dark:bg-[#0B1120] border-2 border-blue-200/70 dark:border-slate-700 rounded-3xl shadow-[0_8px_30px_rgba(99,102,241,0.08)] dark:shadow-[0_8px_30px_rgba(37,99,235,0.15)] flex flex-col items-center justify-center text-center mb-6 sm:mb-8">
-              <span className="text-[11px] sm:text-xs font-mono font-bold tracking-[0.2em] text-[#2563EB] dark:text-blue-300 uppercase mb-2">
-                FINAL HIGHLIGHTED SCORE
-              </span>
-              <div className="text-5xl sm:text-6xl font-black text-[#00A86B] dark:text-emerald-400 font-sans tracking-tight leading-none my-2">
-                {percentage}%
-              </div>
-              <div className="mt-3 px-4 py-1.5 rounded-xl bg-slate-50 dark:bg-blue-950/40 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs sm:text-sm font-semibold">
-                {score} / {totalQuestions} Questions Correct
-              </div>
-            </div>
-
-            {/* 6. Summary Statistics Cards (CORRECT, INCORRECT, ACCURACY - STRICTLY NO XP) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-2xl mx-auto">
-              {/* CORRECT CARD */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase mb-1.5">
-                  CORRECT
+            {/* Score Metric Card */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl mx-auto mb-6">
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-1">
+                  CORRECT (+3)
                 </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-[#00A86B] dark:text-emerald-400 font-mono flex items-center justify-center gap-1.5">
-                  <Check className="w-5 h-5 stroke-[2.5]" />
-                  {score}
+                <span className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                  {correctCount}
                 </span>
               </div>
 
-              {/* INCORRECT CARD */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase mb-1.5">
-                  INCORRECT
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-1">
+                  INCORRECT (-1)
                 </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-rose-500 dark:text-rose-400 font-mono">
-                  {totalQuestions - score}
+                <span className="text-2xl font-extrabold text-rose-500 dark:text-rose-400 font-mono">
+                  {incorrectCount}
                 </span>
               </div>
 
-              {/* ACCURACY CARD */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase mb-1.5">
-                  ACCURACY
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-1">
+                  TIMEOUT (0)
                 </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white font-mono">
-                  {percentage}%
+                <span className="text-2xl font-extrabold text-amber-500 font-mono">
+                  {timeoutCount}
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-[10px] font-mono font-bold tracking-widest text-slate-400 uppercase block mb-1">
+                  NET RAW SCORE
+                </span>
+                <span className="text-2xl font-extrabold text-[#2563EB] dark:text-blue-400 font-mono">
+                  {rawNetScore} / 30
                 </span>
               </div>
             </div>
 
-            {/* 7. Action Buttons (Retake Quiz & Back to Home) */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 mt-8 w-full max-w-md mx-auto">
-              {/* 1. Retake Quiz (Primary Action) */}
+            {/* Navigation Actions (NO RETAKE OR RESET BUTTONS) */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mt-4 w-full max-w-md mx-auto">
               <button
-                id="btn-quiz-retake"
-                type="button"
-                onClick={handleResetQuiz}
-                className="w-full sm:w-auto px-6 sm:px-7 py-3 rounded-2xl bg-primary-gradient hover:brightness-110 text-white font-sans text-sm font-semibold shadow-md shadow-primary-gradient transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4 stroke-[2.2]" />
-                <span>Retake Quiz</span>
-              </button>
-
-              {/* 2. Back to Home (Secondary Action) */}
-              <button
-                id="btn-quiz-back-to-home"
+                id="btn-quiz-view-progress"
                 type="button"
                 onClick={() => {
                   soundManager.playNav();
-                  if (onNavigateToHome) {
-                    onNavigateToHome();
-                  }
+                  onNavigateToProgress();
                 }}
-                className="w-full sm:w-auto px-6 sm:px-7 py-3 rounded-2xl bg-white hover:bg-slate-50 dark:bg-[#0B1120] dark:hover:bg-[#1E293B] text-slate-800 dark:text-slate-200 border border-slate-200/90 dark:border-slate-800 font-sans text-sm font-semibold shadow-xs transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-primary-gradient text-white font-sans text-xs font-bold uppercase tracking-wider shadow-md shadow-primary-gradient transition-all flex items-center justify-center gap-2 cursor-pointer hover:brightness-110"
               >
-                <Home className="w-4 h-4 stroke-[2.2] text-[#2563EB] dark:text-blue-300" />
-                <span>Back to Home</span>
+                <TrendingUp className="w-4 h-4" />
+                <span>View Topic Progress</span>
+              </button>
+
+              <button
+                id="btn-quiz-back-home"
+                type="button"
+                onClick={() => {
+                  soundManager.playNav();
+                  if (onNavigateToHome) onNavigateToHome();
+                }}
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-white dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                <Home className="w-4 h-4" />
+                <span>Back to Overview</span>
               </button>
             </div>
           </div>
 
-          {/* 2. QUESTION OVERVIEW SECTION (Directly Below Completion Certificate) */}
+          {/* Full Question Review Cards */}
           <div id="quiz-question-overview-section" className="space-y-6">
-            {/* Section Heading */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 font-display">
                 <ListOrdered className="w-5 h-5 text-[#2563EB] dark:text-blue-400" />
                 <span>Full Question-by-Question Review</span>
@@ -651,11 +701,11 @@ export const QuizView: React.FC<QuizViewProps> = ({
               </span>
             </div>
 
-            {/* 10 Question Review Cards (Sequential Order 01 to 10) */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               {QUIZ_QUESTIONS.map((q, idx) => {
                 const rec = studentAnswers[q.id];
                 const isCorrect = rec?.isCorrect || false;
+                const isTimedOut = rec?.isTimeout || false;
                 const cleanQuestionText = q.question.replace(/^\d+\.\s*/, '');
                 const questionNumberStr = idx + 1 < 10 ? `0${idx + 1}` : `${idx + 1}`;
 
@@ -663,120 +713,87 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   <div
                     key={q.id}
                     id={`quiz-review-card-${q.id}`}
-                    className={`p-6 sm:p-7 rounded-[22px] sm:rounded-[24px] bg-white dark:bg-[#111827] transition-all shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
+                    className={`p-6 rounded-2xl bg-white dark:bg-[#111827] border transition-all shadow-xs ${
                       isCorrect
-                        ? 'border-2 border-emerald-400 dark:border-emerald-500/50'
-                        : 'border-2 border-rose-300 dark:border-rose-500/50'
+                        ? 'border-emerald-400 dark:border-emerald-500/50'
+                        : isTimedOut
+                        ? 'border-amber-300 dark:border-amber-500/50'
+                        : 'border-rose-300 dark:border-rose-500/50'
                     }`}
                   >
-                    {/* Top Header: Badge + Identifier (Left) & Status Badge (Right) */}
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5">
-                        <span className="px-3 py-1 bg-primary-gradient text-white rounded-full text-xs font-bold font-mono tracking-wide shadow-xs inline-flex items-center justify-center">
+                        <span className="px-3 py-1 bg-primary-gradient text-white rounded-full text-xs font-bold font-mono tracking-wide shadow-xs">
                           Question {questionNumberStr}
                         </span>
-                        <span className="text-xs font-bold text-[#2E55FA] dark:text-[#C4B5FD] font-mono tracking-wider">
+                        <span className="text-xs font-bold text-[#2563EB] dark:text-blue-300 font-mono tracking-wider">
                           {q.techniqueCode}
                         </span>
                       </div>
 
                       <div>
                         {isCorrect ? (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#E6F8F0] dark:bg-emerald-950/60 border border-[#00A86B]/30 dark:border-emerald-500/30 text-[#008A54] dark:text-emerald-300 rounded-lg text-xs font-bold font-sans">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold">
                             <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>Correct</span>
+                            <span>Correct (+3 pts)</span>
+                          </div>
+                        ) : isTimedOut ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-bold">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Timed Out (0 pts)</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold font-sans">
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold">
                             <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>Incorrect</span>
+                            <span>Incorrect (-1 pt)</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Question Statement */}
-                    <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-3.5 mb-4 leading-snug break-words">
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white mt-2 mb-4 leading-snug break-words">
                       {cleanQuestionText}
                     </h4>
 
                     {/* Submission and Correct Answer Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
-                      {/* Left: Your Submission */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                       <div
-                        className={`p-3.5 sm:p-4 rounded-xl border ${
+                        className={`p-3.5 rounded-xl border ${
                           isCorrect
-                            ? 'bg-[#E8FAF0] dark:bg-emerald-950/40 border-[#A7F3D0] dark:border-emerald-500/30'
-                            : 'bg-[#FEECEB] dark:bg-rose-950/40 border-rose-200 dark:border-rose-500/30'
+                            ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-500/30'
+                            : isTimedOut
+                            ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-500/30'
+                            : 'bg-rose-50/50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-500/30'
                         }`}
                       >
-                        <div
-                          className={`text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase mb-1.5 font-sans ${
-                            isCorrect ? 'text-emerald-800 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'
-                          }`}
-                        >
-                          YOUR SUBMISSION:
+                        <div className="text-[10px] font-mono font-bold tracking-wider uppercase mb-1 text-slate-500">
+                          YOUR RESPONSE:
                         </div>
-                        <div className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 break-words">
-                          {rec
+                        <div className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                          {rec && rec.selectedOptionIndex >= 0
                             ? `${String.fromCharCode(65 + rec.selectedOptionIndex)}: ${rec.selectedAnswerText}`
-                            : 'No Answer Submitted'}
+                            : 'Timed Out / Unanswered'}
                         </div>
                       </div>
 
-                      {/* Right: Correct Answer */}
-                      <div className="p-3.5 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-[#F8FAFC] dark:bg-[#0B1120]">
-                        <div className="text-[10px] sm:text-[11px] font-mono font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400 mb-1.5 font-sans">
+                      <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120]">
+                        <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-500 mb-1">
                           CORRECT ANSWER:
                         </div>
-                        <div className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100 break-words">
+                        <div className="font-mono font-bold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
                           {String.fromCharCode(65 + q.correctIndex)}: {q.correctAnswerText}
                         </div>
                       </div>
                     </div>
 
-                    {/* Technical Explanation Panel */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAFC] dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white text-xs sm:text-sm mb-2">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#0B1120] border border-slate-200 dark:border-slate-800 text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white mb-1.5">
                         <HelpCircle className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
                         <span>Technical Explanation:</span>
                       </div>
-                      <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed mb-3 font-normal">
+                      <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-normal">
                         {q.explanation}
                       </p>
-
-                      {q.exampleSnippet && (
-                        <div className="mb-3 p-2.5 bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-xs text-[#2563EB] dark:text-cyan-300 font-semibold">
-                          Example: {q.exampleSnippet}
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
-                        {q.targetChapterId && (
-                          <button
-                            onClick={() => {
-                              soundManager.playNav();
-                              onNavigateToTheory(q.targetChapterId);
-                            }}
-                            className="text-[#2563EB] dark:text-blue-400 hover:text-[#2563EB] dark:hover:text-blue-300 font-semibold text-xs inline-flex items-center gap-1.5 hover:underline cursor-pointer"
-                          >
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span>Review in Theory Guide →</span>
-                          </button>
-                        )}
-                        {q.targetLevelId && (
-                          <button
-                            onClick={() => {
-                              soundManager.playNav();
-                              onNavigateToQuest(q.targetLevelId);
-                            }}
-                            className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold text-xs inline-flex items-center gap-1.5 hover:underline cursor-pointer"
-                          >
-                            <Gamepad2 className="w-3.5 h-3.5 text-[#2563EB] dark:text-blue-400" />
-                            <span>Practice in Quest Level {q.targetLevelId} →</span>
-                          </button>
-                        )}
-                      </div>
                     </div>
                   </div>
                 );
@@ -785,43 +802,63 @@ export const QuizView: React.FC<QuizViewProps> = ({
           </div>
         </div>
       ) : (
-        /* Taking the Quiz: Step-by-Step Question Flow (Questions 1 to 10) */
+        /* Taking the Quiz Question Flow */
         <div className="space-y-6">
           <div
             key={currentQuestion.id}
             id={`quiz-step-card-${currentQuestion.id}`}
-            className={`p-6 sm:p-8 border rounded-2xl transition-all bg-white dark:bg-[#111827] shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] animate-chapter-switch ${
+            className={`p-6 sm:p-8 border rounded-3xl transition-all bg-white dark:bg-[#111827] shadow-xs dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
               isCurrentQuestionAnswered
                 ? currentAnswerRecord?.isCorrect
                   ? 'border-emerald-300 dark:border-emerald-500/40 ring-1 ring-emerald-200 dark:ring-emerald-500/30'
+                  : currentAnswerRecord?.isTimeout
+                  ? 'border-amber-300 dark:border-amber-500/40 ring-1 ring-amber-200 dark:ring-amber-500/30'
                   : 'border-rose-300 dark:border-rose-500/40 ring-1 ring-rose-200 dark:ring-rose-500/30'
                 : 'border-slate-200 dark:border-slate-800'
             }`}
           >
-            {/* Question Header */}
+            {/* Question Card Top Bar */}
             <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 bg-[#2563EB] dark:bg-blue-600 text-white rounded-md text-xs font-bold font-mono shadow-xs">
+                <span className="px-2.5 py-1 bg-[#2563EB] dark:bg-blue-600 text-white rounded-lg text-xs font-bold font-mono shadow-xs">
                   Question {currentQuestionIndex + 1 < 10 ? `0${currentQuestionIndex + 1}` : currentQuestionIndex + 1} of {totalQuestions}
                 </span>
-                <span className="text-xs font-semibold text-[#2563EB] dark:text-cyan-300 font-mono">{currentQuestion.techniqueCode}</span>
+                <span className="text-xs font-semibold text-[#2563EB] dark:text-blue-300 font-mono">
+                  {currentQuestion.techniqueCode}
+                </span>
               </div>
 
-              {isCurrentQuestionAnswered && (
-                <div>
-                  {currentAnswerRecord?.isCorrect ? (
+              <div className="flex items-center gap-2">
+                {isCurrentQuestionAnswered ? (
+                  currentAnswerRecord?.isCorrect ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 rounded-lg">
                       <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Correct</span>
+                      <span>Correct (+3 pts)</span>
+                    </span>
+                  ) : currentAnswerRecord?.isTimeout ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/60 text-xs font-bold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 rounded-lg">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Timed Out (0 pts)</span>
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 dark:bg-rose-950/60 text-xs font-bold text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30 rounded-lg">
                       <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                      <span>Incorrect</span>
+                      <span>Incorrect (-1 pt)</span>
                     </span>
-                  )}
-                </div>
-              )}
+                  )
+                ) : (
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-xl font-mono text-xs font-bold border transition-colors ${
+                      timeLeft <= 5
+                        ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 border-rose-300 animate-pulse'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{timeLeft}s</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Question Statement */}
@@ -855,9 +892,8 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     key={optIdx}
                     id={`quiz-q${currentQuestion.id}-opt${optIdx}`}
                     onClick={() => handleSelectOption(optIdx)}
-                    disabled={isCurrentQuestionAnswered && isSubmitted}
-                    style={{ animationDelay: `${(optIdx + 1) * 60}ms` }}
-                    className={`w-full p-4 text-left text-sm font-sans rounded-xl border transition-all flex items-start gap-3.5 cursor-pointer animate-chapter-switch ${optStyle}`}
+                    disabled={isCurrentQuestionAnswered}
+                    className={`w-full p-4 text-left text-sm font-sans rounded-2xl border transition-all flex items-start gap-3.5 cursor-pointer ${optStyle}`}
                   >
                     <span
                       className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border text-xs font-bold font-mono ${
@@ -878,7 +914,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
               })}
             </div>
 
-            {/* Answer Confirmation / Next Button Bar */}
+            {/* Action Bar */}
             <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <button
                 disabled={currentQuestionIndex === 0}
@@ -886,8 +922,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
                   soundManager.playNav();
                   setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
                 }}
-                className={`btn-modern-secondary px-4 py-2 text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  currentQuestionIndex === 0 ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'cursor-pointer'
+                className={`px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all ${
+                  currentQuestionIndex === 0
+                    ? 'opacity-40 cursor-not-allowed pointer-events-none'
+                    : 'cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -900,8 +938,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     id="btn-submit-answer"
                     disabled={pendingSelection === null}
                     onClick={handleConfirmAnswer}
-                    className={`btn-modern-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                      pendingSelection !== null ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'
+                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-primary-gradient text-white flex items-center gap-2 transition-all shadow-md shadow-primary-gradient ${
+                      pendingSelection !== null
+                        ? 'cursor-pointer hover:brightness-110'
+                        : 'opacity-40 cursor-not-allowed pointer-events-none'
                     }`}
                   >
                     <Check className="w-4 h-4" />
@@ -912,8 +952,10 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     id="btn-finish-quiz"
                     disabled={pendingSelection === null}
                     onClick={handleSubmitExamination}
-                    className={`btn-modern-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
-                      pendingSelection !== null ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed pointer-events-none'
+                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-primary-gradient text-white flex items-center gap-2 transition-all shadow-md shadow-primary-gradient ${
+                      pendingSelection !== null
+                        ? 'cursor-pointer hover:brightness-110'
+                        : 'opacity-40 cursor-not-allowed pointer-events-none'
                     }`}
                   >
                     <Award className="w-4 h-4" />
@@ -927,7 +969,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     soundManager.playClick();
                     setCurrentQuestionIndex((prev) => prev + 1);
                   }}
-                  className="btn-modern-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-primary-gradient text-white flex items-center gap-2 cursor-pointer shadow-md shadow-primary-gradient hover:brightness-110"
                 >
                   <span>Next Question</span>
                   <ArrowRight className="w-4 h-4" />
@@ -936,7 +978,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
                 <button
                   id="btn-finish-quiz"
                   onClick={handleSubmitExamination}
-                  className="btn-modern-primary px-6 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-primary-gradient text-white flex items-center gap-2 cursor-pointer shadow-md shadow-primary-gradient hover:brightness-110"
                 >
                   <Award className="w-4 h-4" />
                   <span>Complete & Review</span>
@@ -946,7 +988,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
 
             {/* Technical Explanation Panel (visible once answered) */}
             {isCurrentQuestionAnswered && (
-              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] rounded-xl p-4 sm:p-5 text-xs">
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#0B1120] rounded-2xl p-4 sm:p-5 text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white mb-2">
                   <HelpCircle className="w-4 h-4 text-[#2563EB] dark:text-blue-400" />
                   <span>Technical Explanation:</span>
@@ -960,33 +1002,6 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     Example: {currentQuestion.exampleSnippet}
                   </div>
                 )}
-
-                <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
-                  {currentQuestion.targetChapterId && (
-                    <button
-                      onClick={() => {
-                        soundManager.playNav();
-                        onNavigateToTheory(currentQuestion.targetChapterId);
-                      }}
-                      className="text-[#2563EB] dark:text-cyan-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Review in Theory Guide →</span>
-                    </button>
-                  )}
-                  {currentQuestion.targetLevelId && (
-                    <button
-                      onClick={() => {
-                        soundManager.playNav();
-                        onNavigateToQuest(currentQuestion.targetLevelId);
-                      }}
-                      className="text-slate-700 dark:text-slate-300 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Gamepad2 className="w-3.5 h-3.5 text-[#2563EB] dark:text-blue-400" />
-                      <span>Practice in Quest Level {currentQuestion.targetLevelId} →</span>
-                    </button>
-                  )}
-                </div>
               </div>
             )}
           </div>

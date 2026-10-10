@@ -755,16 +755,6 @@ export const TaskPlayCanvas: React.FC<TaskPlayCanvasProps> = ({
             <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
             <span>Hint</span>
           </button>
-
-          <button
-            id="btn-reset-task"
-            type="button"
-            onClick={resetTask}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-bold transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
         </div>
       </div>
 
